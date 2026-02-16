@@ -5,6 +5,24 @@ Dashboard 透過解析此檔案來顯示 Agent 的狀態、任務、日誌。
 
 ---
 
+## 🚨 Mandatory Protocol (絕對準則)
+
+為了確保 Dashboard 的即時性與準確性，所有 Agent 必須遵守以下規則：
+
+1.  **Start Task (開工)**:
+    *   在執行任何任務前，**必須**先將 `## Status` 更新為 `🔵 working — [任務名稱]` 或 `🟠 building — [任務名稱]`。
+    *   **嚴禁** 在 `🟢 idle` 狀態下偷偷執行任務。
+
+2.  **Finish Task (完工)**:
+    *   任務完成後，**必須**將 `## Status` 更新回 `🟢 idle — 待命中`。
+    *   **必須** 在 `## Tasks` 中勾選已完成的項目 (`- [x]`)。
+    *   **必須** 在 `## Log` 中新增一條執行紀錄。
+
+3.  **Persistence (記憶)**:
+    *   Agent 必須將此 Protocol 寫入自己的長期記憶 (`MEMORY.md`)，以免遺忘。
+
+---
+
 ## 最小範例
 
 ```markdown
