@@ -182,7 +182,7 @@ const server = http.createServer((req, res) => {
     // 3. SSE Endpoint
     if (pathname === '/api/events') {
         res.writeHead(200, {
-            'Content-Type': 'text/event-stream',
+            'Content-Type': 'text/event-stream; charset=utf-8',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive'
         });
@@ -198,7 +198,7 @@ const server = http.createServer((req, res) => {
 
     // 4. API Endpoint (Snapshot)
     if (pathname === '/api/agents') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(Array.from(agents.values())));
         return;
     }
@@ -232,7 +232,7 @@ const server = http.createServer((req, res) => {
                 res.writeHead(404);
                 res.end('File not found');
             } else {
-                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
                 res.end(content);
             }
         });
@@ -246,7 +246,7 @@ const server = http.createServer((req, res) => {
                 res.writeHead(500);
                 res.end('Error loading index.html');
             } else {
-                res.writeHead(200, { 'Content-Type': 'text/html' });
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
                 res.end(content);
             }
         });
