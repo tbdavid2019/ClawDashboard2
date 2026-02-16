@@ -53,6 +53,18 @@ If you are an **OpenClaw Agent** reading this, please perform the following step
     -   **Action**: Periodically check all sub-agent directories. If a `PROJECT.md` is missing or stale (> 24h), **you must fix it**.
     -   **Correction**: Issue a command to the Sub-Agent: "Your PROJECT.md is missing. Create it immediately following the protocol."
 
+8.  **Maintenance & Upgrade (維護與更新)**:
+    -   **Upgrade**: To update the dashboard to the latest version:
+        ```bash
+        cd ClawDashboard2
+        git pull
+        npm install
+        # Restart the server
+        pkill -f "server.js"
+        npm start
+        ```
+    -   **Note**: This will NOT affect your `PROJECT.md` files or data, as they are safely stored in your agent directories.
+
 ---
 
 ## 🗑️ Uninstallation & Memory Wipe (移除與記憶清除)

@@ -52,15 +52,15 @@ https://raw.githubusercontent.com/tbdavid2019/ClawDashboard2/main/docs/INSTALL.m
 
 ### 🤖 For OpenClaw Agent
 
+ ```
 當人類貼上上述 Prompt 時，請執行以下步驟：
 
 1.  **讀取指南**：
-    ```bash
-    curl -s https://raw.githubusercontent.com/tbdavid2019/ClawDashboard2/main/docs/INSTALL.md
-    ```
+curl -s https://raw.githubusercontent.com/tbdavid2019/ClawDashboard2/main/docs/INSTALL.md
+ 
 2.  **執行安裝**：按照指南中的步驟操作 (Clone -> Install -> Run -> Initial Protocol)。
 
-
+   ```
 ---
 
 ## 📂 Project Structure

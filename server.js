@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const chokidar = require('chokidar');
+const url = require('url');
 
 // Configuration
 const WORKSPACE = process.env.WORKSPACE_ROOT || path.resolve(__dirname, '..');
@@ -21,6 +22,26 @@ function parseProjectMd(filePath) {
         const content = fs.readFileSync(filePath, 'utf8');
         const mtime = fs.statSync(filePath).mtime;
         const directory = path.dirname(filePath);
+
+        // Try to read MEMORY.md in the same directory
+        let memory = '';
+        const memoryPath = path.join(directory, 'MEMORY.md');
+        if (fs.existsSync(memoryPath)) {
+            memory = fs.readFileSync(memoryPath, 'utf8');
+        }
+
+        // Scan for other documents (*.md) excluding PROJECT.md and MEMORY.md
+        const docs = [];
+        try {
+            const files = fs.readdirSync(directory);
+            files.forEach(file => {
+                if (file.endsWith('.md') && file !== 'PROJECT.md' && file !== 'MEMORY.md') {
+                    docs.push(file);
+                }
+            });
+        } catch (e) {
+            console.error('Error scanning docs:', e);
+        }
 
         // Extract Agent Name from H1
         const nameMatch = content.match(/^#\s+(.+)$/m);
@@ -46,6 +67,8 @@ function parseProjectMd(filePath) {
             status: parseStatus(sections['Status']),
             tasks: parseTasks(sections['Tasks']),
             log: parseLog(sections['Log']),
+            memory,
+            docs, // List of other markdown files
             lastUpdated: mtime.getTime(),
             directory
         };
@@ -110,7 +133,7 @@ function parseLog(lines) {
 // ---- 2. File Watcher ----
 const watcher = chokidar.watch(`${WORKSPACE}/**/PROJECT.md`, {
     ignored: IGNORED_PATHS,
-    depth: 2,
+    depth: 4, // Increased depth for nested agents
     persistent: true,
     awaitWriteFinish: {
         stabilityThreshold: 500,
@@ -152,8 +175,12 @@ const server = http.createServer((req, res) => {
     // 1. CORS for dev
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // 2. SSE Endpoint
-    if (req.url === '/api/events') {
+    // 2. Parse URL
+    const parsedUrl = url.parse(req.url, true);
+    const pathname = parsedUrl.pathname;
+
+    // 3. SSE Endpoint
+    if (pathname === '/api/events') {
         res.writeHead(200, {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
@@ -169,15 +196,51 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // 3. API Endpoint (Snapshot)
-    if (req.url === '/api/agents') {
+    // 4. API Endpoint (Snapshot)
+    if (pathname === '/api/agents') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(Array.from(agents.values())));
         return;
     }
 
-    // 4. Static Files
-    if (req.url === '/' || req.url === '/index.html') {
+    // 5. File Content API
+    if (pathname === '/api/file') {
+        const { id, file } = parsedUrl.query;
+        if (!id || !file) {
+            res.writeHead(400);
+            res.end('Missing id or file params');
+            return;
+        }
+
+        // Security check: ensure id is a known agent directory
+        if (!agents.has(id)) {
+            res.writeHead(403);
+            res.end('Access denied: Unknown agent');
+            return;
+        }
+
+        // Security check: prevent directory traversal
+        const targetPath = path.join(id, path.basename(file));
+        if (path.dirname(targetPath) !== id) {
+            res.writeHead(403);
+            res.end('Access denied: File must be in agent directory');
+            return;
+        }
+
+        fs.readFile(targetPath, 'utf8', (err, content) => {
+            if (err) {
+                res.writeHead(404);
+                res.end('File not found');
+            } else {
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end(content);
+            }
+        });
+        return;
+    }
+
+    // 6. Static Files
+    if (pathname === '/' || pathname === '/index.html') {
         fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
             if (err) {
                 res.writeHead(500);
