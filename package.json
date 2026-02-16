@@ -1,0 +1,21 @@
+{
+  "name": "claw-dashboard-2",
+  "version": "1.0.0",
+  "description": "File-first Multi-Agent Monitoring Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "dashboard",
+    "agent",
+    "monitoring",
+    "file-based"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chokidar": "^3.5.3"
+  }
+}

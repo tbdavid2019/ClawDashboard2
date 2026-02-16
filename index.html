@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClawDashboard2</title>
+    <style>
+        /* Modern Reset & Base */
+        :root {
+            --bg-body: #0d1117;
+            --bg-sidebar: #161b22;
+            --bg-card: #0d1117;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --success: #238636;
+            --warning: #d29922;
+            --danger: #f85149;
+            --radius: 6px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: 60px 1fr;
+        }
+
+        /* Header */
+        header {
+            grid-column: 1 / -1;
+            background: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-weight: 600;
+            justify-content: space-between;
+        }
+        
+        .logo { font-size: 1.2rem; color: var(--text-primary); }
+        .meta { font-size: 0.9rem; color: var(--text-secondary); }
+
+        /* Sidebar */
+        aside {
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .agent-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .agent-item:hover { background: #21262d; }
+        .agent-item.active { background: #1f6feb22; border-left: 3px solid var(--accent); }
+
+        .agent-status-dot { font-size: 1.2rem; }
+        .agent-info { flex: 1; min-width: 0; }
+        .agent-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .agent-status-text { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Main Content */
+        main {
+            padding: 40px;
+            overflow-y: auto;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+
+        /* Detail View */
+        .detail-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 { font-size: 2rem; margin-bottom: 10px; }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            background: #21262d;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        h2 { margin: 30px 0 15px; font-size: 1.4rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+
+        /* Tasks */
+        .task-list { list-style: none; }
+        .task-item {
+            display: flex;
+            gap: 12px;
+            padding: 8px 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        
+        .task-checkbox { font-family: monospace; color: var(--text-secondary); min-width: 24px; }
+        .task-text { flex: 1; }
+        
+        /* Status Colors */
+        .status-todo { color: var(--text-secondary); }
+        .status-in-progress { color: var(--accent); }
+        .status-done { color: var(--text-secondary); text-decoration: line-through; opacity: 0.7; }
+        .status-blocked { color: var(--danger); }
+        .status-cancelled { color: var(--text-secondary); text-decoration: line-through; }
+
+        /* Logs */
+        .log-list { list-style: none; font-family: monospace; font-size: 0.9rem; }
+        .log-item {
+            padding: 4px 0;
+            color: var(--text-secondary);
+            border-left: 2px solid var(--border-color);
+            padding-left: 12px;
+            margin-bottom: 4px;
+        }
+
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">🐾 ClawDashboard2</div>
+        <div class="meta" id="connection-status">Connecting...</div>
+    </header>
+
+    <aside id="agent-list"></aside>
+
+    <main id="main-content">
+        <div class="empty-state">
+            <p>Select an agent to view details</p>
+        </div>
+    </main>
+
+    <script>
+        // State
+        let agents = new Map();
+        let selectedAgentId = null;
+
+        // Elements
+        const listEl = document.getElementById('agent-list');
+        const mainEl = document.getElementById('main-content');
+        const statusEl = document.getElementById('connection-status');
+
+        // Render Sidebar
+        function renderSidebar() {
+            listEl.innerHTML = '';
+            
+            // Sort agents by name
+            const sorted = Array.from(agents.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+            sorted.forEach(agent => {
+                const item = document.createElement('div');
+                item.className = `agent-item ${agent.id === selectedAgentId ? 'active' : ''}`;
+                item.onclick = () => selectAgent(agent.id);
+                
+                // Safe access to status properties
+                const r = agent.status?.r || '🟢';
+                const text = agent.status?.text || 'idle';
+
+                item.innerHTML = `
+                    <div class="agent-status-dot">${r}</div>
+                    <div class="agent-info">
+                        <div class="agent-name">${agent.name}</div>
+                        <div class="agent-status-text">${text}</div>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        // Select Agent
+        function selectAgent(id) {
+            selectedAgentId = id;
+            renderSidebar();
+            renderDetail();
+        }
+
+        // Render Detail View
+        function renderDetail() {
+            const agent = agents.get(selectedAgentId);
+            if (!agent) {
+                mainEl.innerHTML = '<div class="empty-state"><p>Select an agent to view details</p></div>';
+                return;
+            }
+
+            const r = agent.status?.r || '🟢';
+            const text = agent.status?.text || 'idle';
+
+            let tasksHtml = '<ul class="task-list">';
+            (agent.tasks || []).forEach(task => {
+                let icon = '[ ]';
+                let cls = 'status-todo';
+                if (task.status === 'done') { icon = '[x]'; cls = 'status-done'; }
+                if (task.status === 'in-progress') { icon = '[/]'; cls = 'status-in-progress'; }
+                if (task.status === 'blocked') { icon = '[!]'; cls = 'status-blocked'; }
+                if (task.status === 'cancelled') { icon = '[~]'; cls = 'status-cancelled'; }
+
+                tasksHtml += `
+                    <li class="task-item ${cls}">
+                        <span class="task-checkbox">${icon}</span>
+                        <span class="task-text">${task.text}</span>
+                    </li>`;
+            });
+            tasksHtml += '</ul>';
+
+            let logsHtml = '<ul class="log-list">';
+            (agent.log || []).forEach(l => {
+                logsHtml += `<li class="log-item">${l}</li>`;
+            });
+            logsHtml += '</ul>';
+
+            mainEl.innerHTML = `
+                <div class="detail-header">
+                    <h1>${agent.name}</h1>
+                    <div class="status-badge">
+                        <span>${r}</span>
+                        <span>${text}</span>
+                    </div>
+                    <!--
+                    <div style="margin-top: 10px; font-size: 0.8rem; color: #666;">
+                        Path: ${agent.directory}
+                    </div>
+                    -->
+                </div>
+
+                <h2>Tasks</h2>
+                ${(agent.tasks && agent.tasks.length) ? tasksHtml : '<p style="color:#666">No tasks found.</p>'}
+
+                <h2>Log</h2>
+                ${(agent.log && agent.log.length) ? logsHtml : '<p style="color:#666">No logs found.</p>'}
+            `;
+        }
+
+        // SSE Connection
+        function connectSSE() {
+            const es = new EventSource('/api/events');
+
+            es.onopen = () => {
+                statusEl.textContent = '🟢 Connected';
+                statusEl.style.color = 'var(--success)';
+            };
+
+            es.onerror = () => {
+                statusEl.textContent = '🔴 Disconnected';
+                statusEl.style.color = 'var(--danger)';
+            };
+
+            es.addEventListener('init', e => {
+                const list = JSON.parse(e.data);
+                agents.clear();
+                list.forEach(a => agents.set(a.id, a));
+                renderSidebar();
+                if (selectedAgentId) renderDetail(); // Refresh current view
+            });
+
+            es.addEventListener('update', e => {
+                const agent = JSON.parse(e.data);
+                agents.set(agent.id, agent);
+                renderSidebar();
+                if (selectedAgentId === agent.id) renderDetail();
+            });
+
+            es.addEventListener('remove', e => {
+                const { id } = JSON.parse(e.data);
+                agents.delete(id);
+                if (selectedAgentId === id) {
+                    selectedAgentId = null;
+                    renderDetail();
+                }
+                renderSidebar();
+            });
+        }
+
+        // Init
+        connectSSE();
+
+    </script>
+</body>
+</html>
