@@ -138,7 +138,7 @@ function parseLog(lines) {
 }
 
 // ---- 2. File Watcher ----
-const watcher = chokidar.watch(`${WORKSPACE}/**/PROJECT.md`, {
+const watcher = chokidar.watch(`${WORKSPACE}/**/*.md`, {
     ignored: IGNORED_PATHS,
     depth: 4, // Increased depth for nested agents
     persistent: true,
@@ -155,10 +155,32 @@ watcher
 
 function updateAgent(filePath) {
     console.log(`Detected change: ${filePath}`);
-    const agent = parseProjectMd(filePath);
-    if (agent) {
-        agents.set(agent.id, agent);
-        broadcast('update', agent);
+    
+    // Determine the agent directory
+    let agentDir = path.dirname(filePath);
+    
+    // If the changed file is NOT PROJECT.md, we need to find the nearest PROJECT.md
+    // Actually, we define an agent by the existence of PROJECT.md
+    
+    // If PROJECT.md changed, update that agent
+    if (path.basename(filePath) === 'PROJECT.md') {
+        const agent = parseProjectMd(filePath);
+        if (agent) {
+            agents.set(agent.id, agent);
+            broadcast('update', agent);
+        }
+        return;
+    }
+
+    // If MEMORY.md or other .md changed, check if PROJECT.md exists in same dir
+    const projectMdPath = path.join(agentDir, 'PROJECT.md');
+    if (fs.existsSync(projectMdPath)) {
+        console.log(`Triggering update for agent in: ${agentDir} due to ${path.basename(filePath)} change`);
+        const agent = parseProjectMd(projectMdPath);
+        if (agent) {
+            agents.set(agent.id, agent);
+            broadcast('update', agent);
+        }
     }
 }
 
