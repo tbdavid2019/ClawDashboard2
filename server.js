@@ -83,10 +83,17 @@ function parseStatus(lines) {
 
     // Find first line with emoji or text
     for (const line of lines) {
-        const match = line.match(/([🟢🔵🟡🟠🔴⏸️❌])\s*(.*)/);
+        // Use more robust regex for surrogate pair emojis
+        const match = line.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*(.*)/u);
         if (match) {
             return { r: match[1], text: match[2].trim() };
         }
+        // Fallback for simple regex if needed
+        const simpleMatch = line.match(/([🟢🔵🟡🟠🔴⏸️❌])\s*(.*)/);
+        if (simpleMatch) {
+             return { r: simpleMatch[1], text: simpleMatch[2].trim() };
+        }
+
         // Fallback if no emoji found but text exists
         if (line.trim().length > 0) {
             return { r: '🟢', text: line.trim() };
