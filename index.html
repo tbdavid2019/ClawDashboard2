@@ -366,9 +366,31 @@
                     ${(agent.log && agent.log.length) ? logsHtml : '<p style="color:#666">No logs found.</p>'}
                 </div>
                 
-                ${memoryHtml}
+                <div class="card" style="margin-top: 1rem;">
+                    <h3>🧠 Long-term Memory (MEMORY.md)</h3>
+                    ${agent.memory ?
+                    `<pre style="white-space: pre-wrap; background: #000; padding: 10px; border-radius: 4px; border: 1px solid #333; color: #aaa; font-size: 0.9em; max-height: 300px; overflow-y: auto;">${escapeHtml(agent.memory)}</pre>` :
+                    `<p style="color:#666; font-style: italic;">No memory found. Create <code>MEMORY.md</code> in the agent directory.</p>`
+                }
+                </div>
 
-                ${docsHtml}
+                <div class="card" style="margin-top: 1rem;">
+                    <h3>📂 Knowledge Base / Documents</h3>
+                    ${(agent.docs && agent.docs.length > 0) ?
+                    `<div class="doc-list" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            ${agent.docs.map(doc => `
+                                <button onclick="viewDoc('${agent.id}', '${doc}')" class="doc-btn" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px 10px; cursor: pointer; border-radius: 4px;">
+                                    📄 ${doc}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div id="doc-viewer" style="margin-top: 10px; display: none;">
+                            <h4 id="doc-title" style="margin-bottom: 5px; color: #aaa;"></h4>
+                            <pre id="doc-content" style="white-space: pre-wrap; background: #111; padding: 10px; border-radius: 4px; border: 1px solid #333; color: #ddd; font-size: 0.9em; max-height: 400px; overflow-y: auto;"></pre>
+                        </div>` :
+                    `<p style="color:#666; font-style: italic;">No documents found. Add <code>*.md</code> files to the agent directory.</p>`
+                }
+                </div>
             `;
         } // end renderDetail
 
