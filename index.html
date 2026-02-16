@@ -221,14 +221,105 @@
             padding-left: 12px;
             margin-bottom: 4px;
         }
+
+        .log-toggle-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            cursor: pointer;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .log-toggle-btn:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile Responsive */
+        .hamburger {
+            display: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            padding: 5px;
+            margin-right: 15px;
+            user-select: none;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 90;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                grid-template-columns: 1fr;
+                grid-template-rows: 60px 1fr;
+            }
+
+            header {
+                justify-content: flex-start;
+            }
+
+            .logo {
+                flex: 1;
+            }
+
+            aside {
+                position: fixed;
+                top: 60px;
+                left: 0;
+                bottom: 0;
+                width: 280px;
+                z-index: 100;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                box-shadow: 2px 0 15px rgba(0,0,0,0.5);
+            }
+
+            aside.open {
+                transform: translateX(0);
+            }
+
+            .overlay.open {
+                display: block;
+            }
+
+            .hamburger {
+                display: block;
+            }
+
+            main {
+                padding: 20px;
+                width: 100%;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            .agent-item {
+                padding: 15px; /* Larger touch target */
+            }
+        }
     </style>
 </head>
 
 <body>
     <header>
+        <div class="hamburger" id="sidebar-toggle">☰</div>
         <div class="logo">🐾 ClawDashboard2</div>
         <div class="meta" id="connection-status">Connecting...</div>
     </header>
+
+    <div class="overlay" id="sidebar-overlay"></div>
 
     <aside id="agent-list"></aside>
 
@@ -253,11 +344,22 @@
         // State
         let agents = new Map();
         let selectedAgentId = null;
+        let logExpanded = false;
 
         // Elements
         const listEl = document.getElementById('agent-list');
         const mainEl = document.getElementById('main-content');
         const statusEl = document.getElementById('connection-status');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        // Sidebar Logic
+        function toggleSidebar() {
+            listEl.classList.toggle('open');
+            sidebarOverlay.classList.toggle('open');
+        }
+        sidebarToggle.onclick = toggleSidebar;
+        sidebarOverlay.onclick = toggleSidebar;
 
         // Render Sidebar
         function renderSidebar() {
@@ -289,6 +391,10 @@
         // Select Agent
         function selectAgent(id) {
             selectedAgentId = id;
+            logExpanded = false; // Reset log view
+            if (window.innerWidth <= 768) {
+                toggleSidebar(); // Close sidebar on selection
+            }
             renderSidebar();
             renderDetail();
         }
@@ -321,11 +427,30 @@
             });
             tasksHtml += '</ul>';
 
+            // Log Logic
+            const logs = agent.log || [];
+            let logsToDisplay = logs;
+            const logLimit = 10;
+            const canExpand = logs.length > logLimit;
+
+            if (!logExpanded && canExpand) {
+                // Show last 10 logs
+                logsToDisplay = logs.slice(-logLimit);
+            }
+
             let logsHtml = '<ul class="log-list">';
-            (agent.log || []).forEach(l => {
+            logsToDisplay.forEach(l => {
                 logsHtml += `<li class="log-item">${l}</li>`;
             });
             logsHtml += '</ul>';
+
+            if (canExpand) {
+                logsHtml += `
+                    <button class="log-toggle-btn" onclick="toggleLogView()">
+                        ${logExpanded ? '⬆️ Collapse Logs' : '⬇️ Show All Logs (' + logs.length + ')'}
+                    </button>
+                `;
+            }
 
             let memoryHtml = '';
             if (agent.memory) {
@@ -404,6 +529,11 @@
                 </div>
             `;
         } // end renderDetail
+
+        window.toggleLogView = function() {
+            logExpanded = !logExpanded;
+            renderDetail();
+        };
 
         window.viewDoc = async function (agentId, filename) {
             const viewer = document.getElementById('doc-viewer');
