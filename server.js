@@ -1,13 +1,21 @@
 const http = require('http');
-const fs = require('fs');
+const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const chokidar = require('chokidar');
 const url = require('url');
 
 // Configuration
 const WORKSPACE = process.env.WORKSPACE_ROOT || path.resolve(__dirname, '..');
-const PORT = process.env.PORT || 3001;
-const IGNORED_PATHS = ['**/node_modules/**', '**/.git/**', '**/ClawDashboard2/**'];
+const PORT = process.env.PORT || 3002;
+const IGNORED_PATHS = [
+    /(^|[\/\\])\../,       // dotfiles
+    /node_modules/,        // node_modules
+    /\.git/,               // git
+    /ClawDashboard2/,      // self
+    /dist/,                // build artifacts
+    /coverage/             // test coverage
+];
 
 console.log(`Starting ClawDashboard2...`);
 console.log(`Watching workspace: ${WORKSPACE}`);
@@ -15,32 +23,38 @@ console.log(`Watching workspace: ${WORKSPACE}`);
 // State
 const agents = new Map();
 const clients = new Set();
+// Debounce map: agentId -> timeoutId
+const updateQueue = new Map();
 
-// ---- 1. Markdown Parser ----
-function parseProjectMd(filePath) {
+// ---- 1. Markdown Parser (Async) ----
+async function parseProjectMd(filePath) {
     try {
-        const content = fs.readFileSync(filePath, 'utf8');
-        const mtime = fs.statSync(filePath).mtime;
+        // Use async file reading to prevent blocking the event loop
+        const content = await fs.readFile(filePath, 'utf8');
+        const stat = await fs.stat(filePath);
+        const mtime = stat.mtime;
         const directory = path.dirname(filePath);
 
         // Try to read MEMORY.md in the same directory
         let memory = '';
         const memoryPath = path.join(directory, 'MEMORY.md');
-        if (fs.existsSync(memoryPath)) {
-            memory = fs.readFileSync(memoryPath, 'utf8');
+        try {
+            memory = await fs.readFile(memoryPath, 'utf8');
+        } catch (e) {
+            // Ignore missing memory file
         }
 
         // Scan for other documents (*.md) excluding PROJECT.md and MEMORY.md
         const docs = [];
         try {
-            const files = fs.readdirSync(directory);
-            files.forEach(file => {
+            const files = await fs.readdir(directory);
+            for (const file of files) {
                 if (file.endsWith('.md') && file !== 'PROJECT.md' && file !== 'MEMORY.md') {
                     docs.push(file);
                 }
-            });
+            }
         } catch (e) {
-            console.error('Error scanning docs:', e);
+            console.error(`Error scanning docs in ${directory}:`, e.message);
         }
 
         // Extract Agent Name from H1
@@ -73,7 +87,7 @@ function parseProjectMd(filePath) {
             directory
         };
     } catch (error) {
-        console.error(`Error parsing ${filePath}:`, error);
+        console.error(`Error parsing ${filePath}:`, error.message);
         return null;
     }
 }
@@ -140,56 +154,133 @@ function parseLog(lines) {
 // ---- 2. File Watcher ----
 const watcher = chokidar.watch(`${WORKSPACE}/**/*.md`, {
     ignored: IGNORED_PATHS,
-    depth: 4, // Increased depth for nested agents
+    depth: 4, // Limit recursion depth
     persistent: true,
+    ignoreInitial: true, // Don't fire 'add' for existing files on startup, we'll scan manually
     awaitWriteFinish: {
-        stabilityThreshold: 500,
+        stabilityThreshold: 1000, // Wait 1s for file writes to settle
         pollInterval: 100
     }
 });
 
-watcher
-    .on('add', filePath => updateAgent(filePath))
-    .on('change', filePath => updateAgent(filePath))
-    .on('unlink', filePath => removeAgent(filePath));
+// Initial Scan
+(async () => {
+    console.log('Performing initial scan...');
+    // We can just use the watcher's 'ready' event if we didn't ignoreInitial, 
+    // but manual scan gives more control. For simplicity, let's just rely on
+    // manual recursive scan or just let chokidar handle it without ignoreInitial=true next time.
+    // Actually, ignoreInitial: false is better for startup state.
+    // Let's reconfigure watcher to catch initial files but use the debounce logic.
+})();
 
-function updateAgent(filePath) {
-    console.log(`Detected change: ${filePath}`);
-    
-    // Determine the agent directory
+
+watcher
+    .on('add', filePath => scheduleUpdate(filePath))
+    .on('change', filePath => scheduleUpdate(filePath))
+    .on('unlink', filePath => handleRemove(filePath))
+    .on('error', error => console.error(`Watcher error: ${error}`));
+
+// Handle removing agent
+function handleRemove(filePath) {
+     if (path.basename(filePath) === 'PROJECT.md') {
+        const directory = path.dirname(filePath);
+        console.log(`Agent removed: ${directory}`);
+        agents.delete(directory);
+        broadcast('remove', { id: directory });
+     }
+}
+
+// Debounced Update Logic
+function scheduleUpdate(filePath) {
+    const fileName = path.basename(filePath);
     let agentDir = path.dirname(filePath);
     
-    // If the changed file is NOT PROJECT.md, we need to find the nearest PROJECT.md
-    // Actually, we define an agent by the existence of PROJECT.md
+    // Determine target PROJECT.md path
+    let projectMdPath;
+
+    if (fileName === 'PROJECT.md') {
+        projectMdPath = filePath;
+    } else {
+        // If another file changed, check if PROJECT.md exists in same dir
+        projectMdPath = path.join(agentDir, 'PROJECT.md');
+        // We can't easily check exists asynchronously inside this sync handler without callback hell
+        // but fs.existsSync is fast enough for just a check, or we assume it exists if we are tracking this agent.
+        // Better: just schedule an update for this directory.
+    }
+
+    // Use agentDir as key for debouncing
+    if (updateQueue.has(agentDir)) {
+        clearTimeout(updateQueue.get(agentDir));
+    }
+
+    // Set a new timeout (Debounce 500ms)
+    const timeoutId = setTimeout(async () => {
+        updateQueue.delete(agentDir); // Remove from queue when executing
+        
+        try {
+            // Verify PROJECT.md exists before parsing
+            // We use the derived path
+            const targetProjectMd = path.join(agentDir, 'PROJECT.md');
+            
+            try {
+                await fs.access(targetProjectMd); // Check existence async
+            } catch (e) {
+                // PROJECT.md doesn't exist, ignore this update (maybe it was deleted or just a loose md file)
+                return; 
+            }
+
+            console.log(`Updating agent: ${agentDir}`);
+            const agent = await parseProjectMd(targetProjectMd);
+            if (agent) {
+                agents.set(agent.id, agent);
+                broadcast('update', agent);
+            }
+        } catch (err) {
+            console.error(`Update failed for ${agentDir}:`, err.message);
+        }
+    }, 500);
+
+    updateQueue.set(agentDir, timeoutId);
+}
+
+// Perform initial population (Sync is fine for startup)
+function initialScan() {
+    // This is a simple recursive scan helper if we wanted to avoid chokidar initial bloat
+    // But chokidar with ignoreInitial:false is easier. 
+    // Let's just stick to chokidar for now, but since we set ignoreInitial:true above (to avoid flood),
+    // we should manually find agents once.
     
-    // If PROJECT.md changed, update that agent
-    if (path.basename(filePath) === 'PROJECT.md') {
-        const agent = parseProjectMd(filePath);
-        if (agent) {
-            agents.set(agent.id, agent);
-            broadcast('update', agent);
-        }
-        return;
-    }
+    // Actually, let's revert to ignoreInitial: false for simplicity, 
+    // but handle the 'add' events with the same debounce logic.
+    // The previous implementation used ignoreInitial: false (default).
+    // Let's restart watcher with better settings.
+}
 
-    // If MEMORY.md or other .md changed, check if PROJECT.md exists in same dir
-    const projectMdPath = path.join(agentDir, 'PROJECT.md');
-    if (fs.existsSync(projectMdPath)) {
-        console.log(`Triggering update for agent in: ${agentDir} due to ${path.basename(filePath)} change`);
-        const agent = parseProjectMd(projectMdPath);
-        if (agent) {
-            agents.set(agent.id, agent);
-            broadcast('update', agent);
+// Since we can't easily change const watcher, let's just use a manual scan for now
+// or rely on the user modifying files to trigger. 
+// WAIT, the best way for a robust dashboard is to scan once at startup.
+async function scanWorkspace(dir) {
+    try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            
+            // Respect ignores
+            if (entry.isDirectory()) {
+                if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'ClawDashboard2') continue;
+                await scanWorkspace(fullPath);
+            } else if (entry.name === 'PROJECT.md') {
+                // Found an agent!
+                scheduleUpdate(fullPath);
+            }
         }
+    } catch (e) {
+        console.error(`Scan error in ${dir}:`, e.message);
     }
 }
 
-function removeAgent(filePath) {
-    const directory = path.dirname(filePath);
-    console.log(`Agent removed: ${directory}`);
-    agents.delete(directory);
-    broadcast('remove', { id: directory });
-}
+// Trigger initial scan
+scanWorkspace(WORKSPACE);
 
 
 // ---- 3. SSE & HTTP Server ----
@@ -200,7 +291,7 @@ function broadcast(event, data) {
     }
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
     // 1. CORS for dev
     res.setHeader('Access-Control-Allow-Origin', '*');
 
@@ -250,35 +341,40 @@ const server = http.createServer((req, res) => {
 
         // Security check: prevent directory traversal
         const targetPath = path.join(id, path.basename(file));
+        
+        // Double check it's within the agent dir
         if (path.dirname(targetPath) !== id) {
             res.writeHead(403);
             res.end('Access denied: File must be in agent directory');
             return;
         }
 
-        fs.readFile(targetPath, 'utf8', (err, content) => {
-            if (err) {
+        try {
+            const content = await fs.readFile(targetPath, 'utf8');
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.end(content);
+        } catch (err) {
+             if (err.code === 'ENOENT') {
                 res.writeHead(404);
                 res.end('File not found');
             } else {
-                res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-                res.end(content);
+                res.writeHead(500);
+                res.end('Error reading file');
             }
-        });
+        }
         return;
     }
 
     // 6. Static Files
     if (pathname === '/' || pathname === '/index.html') {
-        fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
-            if (err) {
-                res.writeHead(500);
-                res.end('Error loading index.html');
-            } else {
-                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-                res.end(content);
-            }
-        });
+        try {
+            const content = await fs.readFile(path.join(__dirname, 'index.html'), 'utf8');
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(content);
+        } catch (err) {
+            res.writeHead(500);
+            res.end('Error loading index.html');
+        }
         return;
     }
 
