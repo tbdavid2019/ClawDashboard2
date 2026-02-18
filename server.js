@@ -63,12 +63,21 @@ async function parseProjectMd(filePath) {
             // Ignore missing memory file
         }
 
-        // Scan for other documents (*.md) excluding PROJECT.md and MEMORY.md
+        // Try to read IDENTITY.md in the same directory (for main agent)
+        let identity = '';
+        const identityPath = path.join(directory, 'IDENTITY.md');
+        try {
+            identity = await fs.readFile(identityPath, 'utf8');
+        } catch (e) {
+            // Ignore missing identity file
+        }
+
+        // Scan for other documents (*.md) excluding PROJECT.md, MEMORY.md, IDENTITY.md
         const docs = [];
         try {
             const files = await fs.readdir(directory);
             for (const file of files) {
-                if (file.endsWith('.md') && file !== 'PROJECT.md' && file !== 'MEMORY.md') {
+                if (file.endsWith('.md') && file !== 'PROJECT.md' && file !== 'MEMORY.md' && file !== 'IDENTITY.md') {
                     docs.push(file);
                 }
             }
@@ -76,9 +85,42 @@ async function parseProjectMd(filePath) {
             console.error(`Error scanning docs in ${directory}:`, e.message);
         }
 
-        // Extract Agent Name from H1
-        const nameMatch = content.match(/^#\s+(.+)$/m);
-        const name = nameMatch ? nameMatch[1].trim() : path.basename(directory);
+        // Extract Agent Name Priority:
+        // 1. MEMORY.md (**Name:** ...)
+        // 2. IDENTITY.md (**Name:** ...)
+        // 3. PROJECT.md (# Title)
+        // 4. Directory Name
+
+        let name = null;
+
+        // Check MEMORY.md
+        if (memory) {
+            const memoryNameMatch = memory.match(/\*\*Name:\*\*\s*(.+)/);
+            if (memoryNameMatch) {
+                name = memoryNameMatch[1].trim();
+            }
+        }
+
+        // Check IDENTITY.md if no name yet
+        if (!name && identity) {
+            const identityNameMatch = identity.match(/\*\*Name:\*\*\s*(.+)/);
+            if (identityNameMatch) {
+                name = identityNameMatch[1].trim();
+            }
+        }
+
+        // Check PROJECT.md H1 if no name yet
+        if (!name) {
+            const nameMatch = content.match(/^#\s+(.+)$/m);
+            if (nameMatch) {
+                name = nameMatch[1].trim();
+            }
+        }
+
+        // Fallback to directory name
+        if (!name) {
+            name = path.basename(directory);
+        }
 
         // Split by H2 sections
         const sections = {};
