@@ -14,8 +14,27 @@ const IGNORED_PATHS = [
     /\.git/,               // git
     /ClawDashboard2/,      // self
     /dist/,                // build artifacts
-    /coverage/             // test coverage
+    /coverage/,            // test coverage
 ];
+
+// Load .dashboardignore
+const IGNORE_FILE = path.join(WORKSPACE, '.dashboardignore');
+let customIgnores = [];
+
+try {
+    if (fsSync.existsSync(IGNORE_FILE)) {
+        const content = fsSync.readFileSync(IGNORE_FILE, 'utf8');
+        customIgnores = content.split('\n')
+            .map(line => line.trim())
+            .filter(line => line && !line.startsWith('#'))
+            .map(pattern => new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))); // Escape regex
+
+        console.log('Loaded custom ignores:', customIgnores.map(r => r.source));
+        IGNORED_PATHS.push(...customIgnores);
+    }
+} catch (e) {
+    console.error('Error reading .dashboardignore:', e.message);
+}
 
 console.log(`Starting ClawDashboard2...`);
 console.log(`Watching workspace: ${WORKSPACE}`);
@@ -105,7 +124,7 @@ function parseStatus(lines) {
         // Fallback for simple regex if needed
         const simpleMatch = line.match(/([🟢🔵🟡🟠🔴⏸️❌])\s*(.*)/);
         if (simpleMatch) {
-             return { r: simpleMatch[1], text: simpleMatch[2].trim() };
+            return { r: simpleMatch[1], text: simpleMatch[2].trim() };
         }
 
         // Fallback if no emoji found but text exists
@@ -182,19 +201,19 @@ watcher
 
 // Handle removing agent
 function handleRemove(filePath) {
-     if (path.basename(filePath) === 'PROJECT.md') {
+    if (path.basename(filePath) === 'PROJECT.md') {
         const directory = path.dirname(filePath);
         console.log(`Agent removed: ${directory}`);
         agents.delete(directory);
         broadcast('remove', { id: directory });
-     }
+    }
 }
 
 // Debounced Update Logic
 function scheduleUpdate(filePath) {
     const fileName = path.basename(filePath);
     let agentDir = path.dirname(filePath);
-    
+
     // Determine target PROJECT.md path
     let projectMdPath;
 
@@ -216,17 +235,17 @@ function scheduleUpdate(filePath) {
     // Set a new timeout (Debounce 500ms)
     const timeoutId = setTimeout(async () => {
         updateQueue.delete(agentDir); // Remove from queue when executing
-        
+
         try {
             // Verify PROJECT.md exists before parsing
             // We use the derived path
             const targetProjectMd = path.join(agentDir, 'PROJECT.md');
-            
+
             try {
                 await fs.access(targetProjectMd); // Check existence async
             } catch (e) {
                 // PROJECT.md doesn't exist, ignore this update (maybe it was deleted or just a loose md file)
-                return; 
+                return;
             }
 
             console.log(`Updating agent: ${agentDir}`);
@@ -249,7 +268,7 @@ function initialScan() {
     // But chokidar with ignoreInitial:false is easier. 
     // Let's just stick to chokidar for now, but since we set ignoreInitial:true above (to avoid flood),
     // we should manually find agents once.
-    
+
     // Actually, let's revert to ignoreInitial: false for simplicity, 
     // but handle the 'add' events with the same debounce logic.
     // The previous implementation used ignoreInitial: false (default).
@@ -259,15 +278,23 @@ function initialScan() {
 // Since we can't easily change const watcher, let's just use a manual scan for now
 // or rely on the user modifying files to trigger. 
 // WAIT, the best way for a robust dashboard is to scan once at startup.
+// Helper to check if path is ignored
+function isIgnored(filePath) {
+    return IGNORED_PATHS.some(regex => regex.test(filePath));
+}
+
 async function scanWorkspace(dir) {
     try {
         const entries = await fs.readdir(dir, { withFileTypes: true });
         for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
-            
+
             // Respect ignores
+            if (isIgnored(fullPath)) {
+                continue;
+            }
+
             if (entry.isDirectory()) {
-                if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'ClawDashboard2') continue;
                 await scanWorkspace(fullPath);
             } else if (entry.name === 'PROJECT.md') {
                 // Found an agent!
@@ -341,7 +368,7 @@ const server = http.createServer(async (req, res) => {
 
         // Security check: prevent directory traversal
         const targetPath = path.join(id, path.basename(file));
-        
+
         // Double check it's within the agent dir
         if (path.dirname(targetPath) !== id) {
             res.writeHead(403);
@@ -354,7 +381,7 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
             res.end(content);
         } catch (err) {
-             if (err.code === 'ENOENT') {
+            if (err.code === 'ENOENT') {
                 res.writeHead(404);
                 res.end('File not found');
             } else {
@@ -380,6 +407,16 @@ const server = http.createServer(async (req, res) => {
 
     res.writeHead(404);
     res.end('Not Found');
+});
+
+// ---- 4. Global Error Handling ----
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+    // Keep running if possible, but logging is crucial
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED REJECTION:', reason);
 });
 
 server.listen(PORT, () => {
