@@ -95,7 +95,7 @@ async function parseProjectMd(filePath) {
 
         // Check MEMORY.md
         if (memory) {
-            const memoryNameMatch = memory.match(/\*\*Name:\*\*\s*(.+)/);
+            const memoryNameMatch = memory.match(/\*\*(?:Name|暱稱|姓名):\*\*\s*(.+)/i);
             if (memoryNameMatch) {
                 name = memoryNameMatch[1].trim();
             }
@@ -103,7 +103,7 @@ async function parseProjectMd(filePath) {
 
         // Check IDENTITY.md if no name yet
         if (!name && identity) {
-            const identityNameMatch = identity.match(/\*\*Name:\*\*\s*(.+)/);
+            const identityNameMatch = identity.match(/\*\*(?:Name|暱稱|姓名):\*\*\s*(.+)/i);
             if (identityNameMatch) {
                 name = identityNameMatch[1].trim();
             }
@@ -142,6 +142,7 @@ async function parseProjectMd(filePath) {
             status: parseStatus(sections['Status']),
             tasks: parseTasks(sections['Tasks']),
             log: parseLog(sections['Log']),
+            todayLogCount: countTodayLogs(sections['Log']),
             memory,
             docs, // List of other markdown files
             lastUpdated: mtime.getTime(),
@@ -210,6 +211,13 @@ function parseLog(lines) {
     if (!lines) return [];
     // Just return raw lines for now, maybe parse dates later for activity heatmap
     return lines.map(line => line.replace(/^-\s*/, '')).filter(l => l.length > 0);
+}
+
+function countTodayLogs(lines) {
+    if (!lines) return 0;
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const regex = new RegExp(`^-\\s*${today}`);
+    return lines.filter(line => regex.test(line)).length;
 }
 
 // ---- 2. File Watcher ----
