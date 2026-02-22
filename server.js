@@ -333,7 +333,7 @@ function parseLog(lines) {
 function countTodayLogs(lines) {
     if (!lines) return 0;
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const regex = new RegExp(`^-\\s*${today}`);
+    const regex = new RegExp(`^(?:-\\s*)?\\[?${today}`);
     return lines.filter(line => regex.test(line)).length;
 }
 
