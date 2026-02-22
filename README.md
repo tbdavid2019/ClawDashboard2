@@ -79,6 +79,15 @@ Resolution order:
 
 ---
 
+## 📌 Recent Updates
+
+- Console-style dashboard UI with configurable columns/sort/color
+- Editable markdown files + in-place agent rename (writes to `IDENTITY.md`)
+- Default Model reads from local `openclaw.json`
+- Log format standardized; bracketed dates compatible
+
+---
+
 ## 🏷️ Agent Naming Protocol (IDENTITY.md / MEMORY.md)
 
 To ensure the dashboard displays the correct agent name, **IDENTITY.md** (or `MEMORY.md`) must include one of these fields:
