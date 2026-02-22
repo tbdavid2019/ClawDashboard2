@@ -64,14 +64,16 @@ async function loadOpenclawConfig() {
 
 function extractDefaultModelFromConfig(config, agentDir) {
     if (!config) return null;
-    const agentKey = path.basename(agentDir);
 
-    const agentCfg = config.agents?.[agentKey] || null;
     const defaultsCfg = config.agents?.defaults || null;
+    const list = Array.isArray(config.agents?.list) ? config.agents.list : [];
+
+    // Match by workspace path in agents.list
+    const entry = list.find(a => a.workspace && path.resolve(a.workspace) === path.resolve(agentDir));
 
     return (
-        agentCfg?.model?.primary ||
-        agentCfg?.model ||
+        entry?.model ||
+        entry?.defaultModel ||
         defaultsCfg?.model?.primary ||
         defaultsCfg?.model ||
         config.model?.primary ||
