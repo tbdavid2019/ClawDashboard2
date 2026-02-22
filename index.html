@@ -178,8 +178,6 @@
                         <option value="todayLogCount">Today Logs</option>
                         <option value="lastUpdated">Last Updated</option>
                         <option value="defaultModel">Default Model</option>
-                        <option value="todayTokens">Today Tokens</option>
-                        <option value="todayCalls">Today Calls</option>
                         <option value="taskOpen">Open Tasks</option>
                         <option value="taskTotal">Total Tasks</option>
                     </select>
@@ -241,8 +239,6 @@
                 todayLogCount: true,
                 lastUpdated: true,
                 defaultModel: true,
-                todayTokens: true,
-                todayCalls: true,
                 tasks: true,
             }
         };
@@ -296,8 +292,6 @@
             { key: 'todayLogCount', label: 'Today Logs' },
             { key: 'lastUpdated', label: 'Last Updated' },
             { key: 'defaultModel', label: 'Default Model' },
-            { key: 'todayTokens', label: 'Today Tokens' },
-            { key: 'todayCalls', label: 'Today Calls' },
             { key: 'tasks', label: 'Tasks (total/open)' },
         ];
 
@@ -339,8 +333,6 @@
                 case 'todayLogCount': return agent.todayLogCount || 0;
                 case 'lastUpdated': return agent.lastUpdated || 0;
                 case 'defaultModel': return (agent.defaultModel || '').toLowerCase();
-                case 'todayTokens': return agent.todayTokens || 0;
-                case 'todayCalls': return agent.todayCalls || 0;
                 case 'taskOpen': return open;
                 case 'taskTotal': return total;
                 default: return 0;
@@ -402,10 +394,6 @@
                             return `<td data-label="${col.label}" class="mono">${formatTime(agent.lastUpdated)}</td>`;
                         case 'defaultModel':
                             return `<td data-label="${col.label}" class="mono">${escapeHtml(agent.defaultModel || '-') }</td>`;
-                        case 'todayTokens':
-                            return `<td data-label="${col.label}" class="mono">${agent.todayTokens ?? '-'}</td>`;
-                        case 'todayCalls':
-                            return `<td data-label="${col.label}" class="mono">${agent.todayCalls ?? '-'}</td>`;
                         case 'tasks':
                             return `<td data-label="${col.label}" class="mono">${total}/${open}</td>`;
                         default:
