@@ -530,20 +530,6 @@
             </div>
         </div>
 
-        <!-- AGENT TABLE -->
-        <div class="panel table-panel">
-            <div class="panel-header">
-                <span>Active Agents</span>
-                <span id="agent-count" class="text-accent">0</span>
-            </div>
-            <div class="table-scroll">
-                <table class="data-table" id="agent-table">
-                    <thead><tr id="table-head"></tr></thead>
-                    <tbody id="table-body"></tbody>
-                </table>
-            </div>
-        </div>
-
         <!-- OPENCLAW CONFIG VIEWER -->
         <div class="panel" id="config-panel">
             <div class="panel-header">
@@ -556,6 +542,20 @@
                 </div>
             </div>
             <pre id="config-raw" class="config-pre">LOADING...</pre>
+        </div>
+
+        <!-- AGENT TABLE -->
+        <div class="panel table-panel">
+            <div class="panel-header">
+                <span>Active Agents</span>
+                <span id="agent-count" class="text-accent">0</span>
+            </div>
+            <div class="table-scroll">
+                <table class="data-table" id="agent-table">
+                    <thead><tr id="table-head"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- DETAIL VIEW -->
@@ -840,15 +840,14 @@
 
         async function loadConfigRaw() {
             try {
-                const res = await fetch('/api/openclaw');
+                const res = await fetch('/api/openclaw/raw');
                 if (!res.ok) {
                     configRawEl.textContent = `[ERROR] ${res.status} ${res.statusText}`;
                     configMetaEl.textContent = 'RAW JSON';
                     return;
                 }
-                const data = await res.json();
-                const raw = data.raw || {};
-                const pretty = JSON.stringify(raw, null, 2);
+                const raw = await res.json();
+                const pretty = JSON.stringify(raw || {}, null, 2);
                 configRawEl.textContent = pretty;
                 configMetaEl.textContent = 'RAW JSON · ' + (pretty.split('\n').length) + ' LINES';
             } catch (e) {

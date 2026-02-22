@@ -730,6 +730,13 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    if (pathname === '/api/openclaw/raw') {
+        const config = await loadOpenclawConfig();
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(config || {}));
+        return;
+    }
+
     // 6b. Sessions List
     if (pathname === '/api/sessions') {
         try {
