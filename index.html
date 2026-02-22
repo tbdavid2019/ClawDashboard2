@@ -6,307 +6,147 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClawDashboard2</title>
     <style>
-        /* Modern Reset & Base */
         :root {
-            --bg-body: #0d1117;
-            --bg-sidebar: #161b22;
-            --bg-card: #0d1117;
-            --border-color: #30363d;
-            --text-primary: #c9d1d9;
-            --text-secondary: #8b949e;
-            --accent: #58a6ff;
-            --success: #238636;
-            --warning: #d29922;
-            --danger: #f85149;
+            --bg-body: #0b0f14;
+            --bg-panel: #0f1520;
+            --bg-header: #0c111a;
+            --border-color: #1f2a37;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9aa4b2;
+            --accent: #60a5fa;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
             --radius: 6px;
+            --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            background-color: var(--bg-body);
+            background: var(--bg-body);
             color: var(--text-primary);
-            height: 100vh;
+            min-height: 100vh;
             display: grid;
-            grid-template-columns: 280px 1fr;
-            grid-template-rows: 60px 1fr;
+            grid-template-rows: 56px 1fr;
         }
 
-        /* Header */
         header {
-            grid-column: 1 / -1;
-            background: var(--bg-sidebar);
+            background: var(--bg-header);
             border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
-            padding: 0 20px;
-            font-weight: 600;
             justify-content: space-between;
+            padding: 0 16px;
         }
 
-        .logo {
-            font-size: 1.2rem;
-            color: var(--text-primary);
-        }
+        .logo { font-weight: 700; letter-spacing: 0.5px; }
+        .meta { font-size: 0.9rem; color: var(--text-secondary); }
 
-        .meta {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-        }
-
-        /* Sidebar */
-        aside {
-            background: var(--bg-sidebar);
-            border-right: 1px solid var(--border-color);
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .agent-item {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .agent-item:hover {
-            background: #21262d;
-        }
-
-        .agent-item.active {
-            background: #1f6feb22;
-            border-left: 3px solid var(--accent);
-        }
-
-        .agent-status-dot {
-            font-size: 1.2rem;
-        }
-
-        .agent-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .agent-name {
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .agent-status-text {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Main Content */
         main {
-            padding: 40px;
-            overflow-y: auto;
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
+            padding: 18px;
+            display: grid;
+            gap: 16px;
         }
 
-        .empty-state {
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 12px;
+        }
+
+        .controls {
             display: flex;
-            flex-direction: column;
+            gap: 12px;
             align-items: center;
-            justify-content: center;
-            height: 100%;
-            color: var(--text-secondary);
+            flex-wrap: wrap;
         }
 
-        /* Detail View */
-        .detail-header {
-            margin-bottom: 30px;
-            padding-bottom: 20px;
+        .controls label { color: var(--text-secondary); font-size: 0.85rem; margin-right: 6px; }
+        select, button, input[type="checkbox"] {
+            background: #0b1220;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 0.9rem;
+        }
+
+        button { cursor: pointer; }
+        button:hover { border-color: #334155; }
+
+        .dropdown { position: relative; }
+        .dropdown-panel {
+            position: absolute;
+            top: 36px;
+            left: 0;
+            min-width: 240px;
+            background: #0b1220;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            display: none;
+            z-index: 10;
+        }
+        .dropdown-panel.open { display: block; }
+        .dropdown-panel label { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+        thead th {
+            text-align: left;
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 10px 8px;
             border-bottom: 1px solid var(--border-color);
         }
-
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 10px;
+        tbody td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(31, 42, 55, 0.6);
+            vertical-align: top;
         }
+        tbody tr:hover { background: rgba(96, 165, 250, 0.08); cursor: pointer; }
+        .mono { font-family: var(--mono); }
 
         .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 4px 12px;
-            background: #21262d;
+            gap: 6px;
+            padding: 2px 8px;
+            border-radius: 999px;
             border: 1px solid var(--border-color);
-            border-radius: 20px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            white-space: nowrap;
         }
+        .status-color { border-color: transparent; }
+        .status-green { color: var(--success); }
+        .status-blue { color: #60a5fa; }
+        .status-yellow { color: var(--warning); }
+        .status-orange { color: #fb923c; }
+        .status-red { color: var(--danger); }
 
-        h2 {
-            margin: 30px 0 15px;
-            font-size: 1.4rem;
-            color: var(--text-primary);
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 8px;
-        }
-
-        /* Tasks */
-        .task-list {
-            list-style: none;
-        }
-
-        .task-item {
-            display: flex;
+        .detail {
+            display: grid;
             gap: 12px;
-            padding: 8px 0;
-            font-size: 0.95rem;
-            line-height: 1.5;
         }
+        .detail h2 { font-size: 1.1rem; margin-bottom: 6px; }
+        pre { white-space: pre-wrap; color: #cbd5e1; background: #0a0f16; padding: 10px; border-radius: 6px; border: 1px solid #111827; max-height: 300px; overflow: auto; }
 
-        .task-checkbox {
-            font-family: monospace;
-            color: var(--text-secondary);
-            min-width: 24px;
-        }
+        .muted { color: var(--text-secondary); }
 
-        .task-text {
-            flex: 1;
-        }
-
-        /* Status Colors */
-        .status-todo {
-            color: var(--text-secondary);
-        }
-
-        .status-in-progress {
-            color: var(--accent);
-        }
-
-        .status-done {
-            color: var(--text-secondary);
-            text-decoration: line-through;
-            opacity: 0.7;
-        }
-
-        .status-blocked {
-            color: var(--danger);
-        }
-
-        .status-cancelled {
-            color: var(--text-secondary);
-            text-decoration: line-through;
-        }
-
-        /* Logs */
-        .log-list {
-            list-style: none;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-
-        .log-item {
-            padding: 4px 0;
-            color: var(--text-secondary);
-            border-left: 2px solid var(--border-color);
-            padding-left: 12px;
-            margin-bottom: 4px;
-        }
-
-        .log-toggle-btn {
-            background: none;
-            border: none;
-            color: var(--accent);
-            cursor: pointer;
-            padding: 8px 0;
-            font-size: 0.9rem;
-            margin-top: 5px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .log-toggle-btn:hover {
-            text-decoration: underline;
-        }
-
-        /* Mobile Responsive */
-        .hamburger {
-            display: none;
-            cursor: pointer;
-            font-size: 1.5rem;
-            color: var(--text-primary);
-            padding: 5px;
-            margin-right: 15px;
-            user-select: none;
-        }
-
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 90;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                grid-template-columns: 1fr;
-                grid-template-rows: 60px 1fr;
-            }
-
-            header {
-                justify-content: flex-start;
-            }
-
-            .logo {
-                flex: 1;
-            }
-
-            aside {
-                position: fixed;
-                top: 60px;
-                left: 0;
-                bottom: 0;
-                width: 280px;
-                z-index: 100;
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-                box-shadow: 2px 0 15px rgba(0,0,0,0.5);
-            }
-
-            aside.open {
-                transform: translateX(0);
-            }
-
-            .overlay.open {
+        @media (max-width: 900px) {
+            main { padding: 12px; }
+            table { font-size: 0.85rem; }
+            thead { display: none; }
+            tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 0; }
+            tbody td { border: none; }
+            tbody td::before {
+                content: attr(data-label);
                 display: block;
-            }
-
-            .hamburger {
-                display: block;
-            }
-
-            main {
-                padding: 20px;
-                width: 100%;
-            }
-
-            h1 {
-                font-size: 1.6rem;
-            }
-
-            .agent-item {
-                padding: 15px; /* Larger touch target */
+                color: var(--text-secondary);
+                font-size: 0.75rem;
+                margin-bottom: 2px;
             }
         }
     </style>
@@ -314,23 +154,64 @@
 
 <body>
     <header>
-        <div class="hamburger" id="sidebar-toggle">☰</div>
-        <div class="logo">🐾 ClawDashboard2</div>
+        <div class="logo">📟 ClawDashboard2 Console</div>
         <div class="meta" id="connection-status">Connecting...</div>
     </header>
 
-    <div class="overlay" id="sidebar-overlay"></div>
+    <main>
+        <div class="panel">
+            <div class="controls">
+                <div>
+                    <label>Sort by</label>
+                    <select id="sort-key">
+                        <option value="status">Status</option>
+                        <option value="name">Agent Name</option>
+                        <option value="todayLogCount">Today Logs</option>
+                        <option value="lastUpdated">Last Updated</option>
+                        <option value="defaultModel">Default Model</option>
+                        <option value="todayTokens">Today Tokens</option>
+                        <option value="todayCalls">Today Calls</option>
+                        <option value="taskOpen">Open Tasks</option>
+                        <option value="taskTotal">Total Tasks</option>
+                    </select>
+                </div>
 
-    <aside id="agent-list"></aside>
+                <div>
+                    <label>Direction</label>
+                    <select id="sort-dir">
+                        <option value="asc">Asc</option>
+                        <option value="desc">Desc</option>
+                    </select>
+                </div>
 
-    <main id="main-content">
-        <div class="empty-state">
-            <p>Select an agent to view details</p>
+                <div>
+                    <label>Color</label>
+                    <select id="color-mode">
+                        <option value="off">Off (color-blind)</option>
+                        <option value="on">On</option>
+                    </select>
+                </div>
+
+                <div class="dropdown">
+                    <button id="column-btn">Columns ▾</button>
+                    <div class="dropdown-panel" id="column-panel"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <table id="agent-table">
+                <thead><tr id="table-head"></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+
+        <div class="panel detail" id="detail-panel">
+            <div class="muted">Select an agent to view details.</div>
         </div>
     </main>
 
     <script>
-        // Helper
         function escapeHtml(text) {
             if (!text) return text;
             return text
@@ -341,263 +222,246 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // State
+        const DEFAULT_SETTINGS = {
+            sortKey: 'status',
+            sortDir: 'asc',
+            colorMode: 'off',
+            columns: {
+                name: true,
+                status: true,
+                todayLogCount: true,
+                lastUpdated: true,
+                defaultModel: true,
+                todayTokens: true,
+                todayCalls: true,
+                tasks: true,
+            }
+        };
+
+        function loadSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('clawDashboardSettings'));
+                return { ...DEFAULT_SETTINGS, ...saved, columns: { ...DEFAULT_SETTINGS.columns, ...(saved?.columns || {}) } };
+            } catch {
+                return DEFAULT_SETTINGS;
+            }
+        }
+
+        function saveSettings() {
+            localStorage.setItem('clawDashboardSettings', JSON.stringify(settings));
+        }
+
+        let settings = loadSettings();
         let agents = new Map();
         let selectedAgentId = null;
-        let logExpanded = false;
-        let showCompletedTasks = false;
 
-        // Elements
-        const listEl = document.getElementById('agent-list');
-        const mainEl = document.getElementById('main-content');
         const statusEl = document.getElementById('connection-status');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const sortKeyEl = document.getElementById('sort-key');
+        const sortDirEl = document.getElementById('sort-dir');
+        const colorModeEl = document.getElementById('color-mode');
+        const columnBtn = document.getElementById('column-btn');
+        const columnPanel = document.getElementById('column-panel');
+        const tableHead = document.getElementById('table-head');
+        const tableBody = document.getElementById('table-body');
+        const detailPanel = document.getElementById('detail-panel');
 
-        // Sidebar Logic
-        function toggleSidebar() {
-            listEl.classList.toggle('open');
-            sidebarOverlay.classList.toggle('open');
+        sortKeyEl.value = settings.sortKey;
+        sortDirEl.value = settings.sortDir;
+        colorModeEl.value = settings.colorMode;
+
+        sortKeyEl.onchange = () => { settings.sortKey = sortKeyEl.value; saveSettings(); renderTable(); };
+        sortDirEl.onchange = () => { settings.sortDir = sortDirEl.value; saveSettings(); renderTable(); };
+        colorModeEl.onchange = () => { settings.colorMode = colorModeEl.value; saveSettings(); renderTable(); };
+
+        columnBtn.onclick = () => columnPanel.classList.toggle('open');
+        document.addEventListener('click', (e) => {
+            if (!columnPanel.contains(e.target) && e.target !== columnBtn) {
+                columnPanel.classList.remove('open');
+            }
+        });
+
+        const COLUMN_DEFS = [
+            { key: 'name', label: 'Agent Name' },
+            { key: 'status', label: 'Status' },
+            { key: 'todayLogCount', label: 'Today Logs' },
+            { key: 'lastUpdated', label: 'Last Updated' },
+            { key: 'defaultModel', label: 'Default Model' },
+            { key: 'todayTokens', label: 'Today Tokens' },
+            { key: 'todayCalls', label: 'Today Calls' },
+            { key: 'tasks', label: 'Tasks (total/open)' },
+        ];
+
+        function renderColumnPanel() {
+            columnPanel.innerHTML = COLUMN_DEFS.map(col => {
+                const checked = settings.columns[col.key] ? 'checked' : '';
+                return `
+                    <label>
+                        <input type="checkbox" data-col="${col.key}" ${checked} />
+                        ${col.label}
+                    </label>
+                `;
+            }).join('');
+
+            columnPanel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.onchange = (e) => {
+                    const key = e.target.getAttribute('data-col');
+                    settings.columns[key] = e.target.checked;
+                    saveSettings();
+                    renderTable();
+                };
+            });
         }
-        sidebarToggle.onclick = toggleSidebar;
-        sidebarOverlay.onclick = toggleSidebar;
 
-        // Render Sidebar
-        function renderSidebar() {
-            listEl.innerHTML = '';
+        function statusRank(agent) {
+            const r = agent?.status?.r || '🟢';
+            const order = { '🔴': 0, '🟠': 1, '🟡': 2, '🔵': 3, '🟢': 4 };
+            return (r in order) ? order[r] : 5;
+        }
 
-            // Sort agents by status priority, then activity, then lastUpdated
-            const statusRank = (agent) => {
-                const r = agent?.status?.r || '🟢';
-                // Higher priority first (lower rank)
-                const order = { '🔴': 0, '🟠': 1, '🟡': 2, '🔵': 3, '🟢': 4 };
-                return (r in order) ? order[r] : 5;
-            };
-            const sorted = Array.from(agents.values()).sort((a, b) => {
-                const ra = statusRank(a);
-                const rb = statusRank(b);
-                if (ra !== rb) return ra - rb;
-                const la = a.todayLogCount || 0;
-                const lb = b.todayLogCount || 0;
-                if (la !== lb) return lb - la;
+        function getSortValue(agent, key) {
+            const tasks = agent.tasks || [];
+            const open = tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
+            const total = tasks.length;
+
+            switch (key) {
+                case 'status': return statusRank(agent);
+                case 'name': return (agent.name || '').toLowerCase();
+                case 'todayLogCount': return agent.todayLogCount || 0;
+                case 'lastUpdated': return agent.lastUpdated || 0;
+                case 'defaultModel': return (agent.defaultModel || '').toLowerCase();
+                case 'todayTokens': return agent.todayTokens || 0;
+                case 'todayCalls': return agent.todayCalls || 0;
+                case 'taskOpen': return open;
+                case 'taskTotal': return total;
+                default: return 0;
+            }
+        }
+
+        function sortAgents(list) {
+            const dir = settings.sortDir === 'asc' ? 1 : -1;
+            return list.sort((a, b) => {
+                const va = getSortValue(a, settings.sortKey);
+                const vb = getSortValue(b, settings.sortKey);
+                if (va < vb) return -1 * dir;
+                if (va > vb) return 1 * dir;
                 return (b.lastUpdated || 0) - (a.lastUpdated || 0);
             });
+        }
 
-            sorted.forEach(agent => {
-                const item = document.createElement('div');
-                item.className = `agent-item ${agent.id === selectedAgentId ? 'active' : ''}`;
-                item.onclick = () => selectAgent(agent.id);
+        function formatTime(ts) {
+            if (!ts) return '-';
+            try {
+                return new Date(ts).toLocaleString();
+            } catch {
+                return '-';
+            }
+        }
 
-                // Safe access to status properties
-                const r = agent.status?.r || '🟢';
-                const text = agent.status?.text || 'idle';
-                
-                // Activity Badge
-                let badgeHtml = '';
-                if (agent.todayLogCount > 0) {
-                    badgeHtml = `<span style="background: #238636; color: white; font-size: 0.75rem; padding: 2px 6px; border-radius: 10px; margin-left: auto;">${agent.todayLogCount}</span>`;
-                }
+        function getStatusClass(r) {
+            if (r === '🔴') return 'status-red';
+            if (r === '🟠') return 'status-orange';
+            if (r === '🟡') return 'status-yellow';
+            if (r === '🔵') return 'status-blue';
+            return 'status-green';
+        }
 
-                item.innerHTML = `
-                    <div class="agent-status-dot">${r}</div>
-                    <div class="agent-info">
-                        <div class="agent-name">${agent.name}</div>
-                        <div class="agent-status-text">${text}</div>
-                    </div>
-                    ${badgeHtml}
-                `;
-                listEl.appendChild(item);
+        function renderTable() {
+            renderColumnPanel();
+            const cols = COLUMN_DEFS.filter(c => settings.columns[c.key]);
+
+            tableHead.innerHTML = cols.map(c => `<th>${c.label}</th>`).join('');
+            const sorted = sortAgents(Array.from(agents.values()));
+
+            tableBody.innerHTML = sorted.map(agent => {
+                const tasks = agent.tasks || [];
+                const open = tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
+                const total = tasks.length;
+                const statusIcon = agent.status?.r || '🟢';
+                const statusText = agent.status?.text || 'idle';
+                const statusClass = settings.colorMode === 'on' ? `status-color ${getStatusClass(statusIcon)}` : '';
+
+                const rowCells = cols.map(col => {
+                    switch (col.key) {
+                        case 'name':
+                            return `<td data-label="${col.label}">${escapeHtml(agent.name || '-')}</td>`;
+                        case 'status':
+                            return `<td data-label="${col.label}"><span class="status-badge ${statusClass}">${statusIcon} ${escapeHtml(statusText)}</span></td>`;
+                        case 'todayLogCount':
+                            return `<td data-label="${col.label}" class="mono">${agent.todayLogCount ?? 0}</td>`;
+                        case 'lastUpdated':
+                            return `<td data-label="${col.label}" class="mono">${formatTime(agent.lastUpdated)}</td>`;
+                        case 'defaultModel':
+                            return `<td data-label="${col.label}" class="mono">${escapeHtml(agent.defaultModel || '-') }</td>`;
+                        case 'todayTokens':
+                            return `<td data-label="${col.label}" class="mono">${agent.todayTokens ?? '-'}</td>`;
+                        case 'todayCalls':
+                            return `<td data-label="${col.label}" class="mono">${agent.todayCalls ?? '-'}</td>`;
+                        case 'tasks':
+                            return `<td data-label="${col.label}" class="mono">${total}/${open}</td>`;
+                        default:
+                            return `<td data-label="${col.label}">-</td>`;
+                    }
+                }).join('');
+
+                return `<tr data-id="${agent.id}">${rowCells}</tr>`;
+            }).join('');
+
+            tableBody.querySelectorAll('tr').forEach(row => {
+                row.onclick = () => selectAgent(row.getAttribute('data-id'));
             });
         }
 
-        // Select Agent
         function selectAgent(id) {
             selectedAgentId = id;
-            logExpanded = false; // Reset log view
-            if (window.innerWidth <= 768) {
-                toggleSidebar(); // Close sidebar on selection
-            }
-            renderSidebar();
             renderDetail();
         }
 
-        // Render Detail View
         function renderDetail() {
             const agent = agents.get(selectedAgentId);
             if (!agent) {
-                mainEl.innerHTML = '<div class="empty-state"><p>Select an agent to view details</p></div>';
+                detailPanel.innerHTML = '<div class="muted">Select an agent to view details.</div>';
                 return;
             }
 
-            const r = agent.status?.r || '🟢';
-            const text = agent.status?.text || 'idle';
+            const statusIcon = agent.status?.r || '🟢';
+            const statusText = agent.status?.text || 'idle';
+            const tasks = agent.tasks || [];
 
-            let tasksHtml = '<ul class="task-list">';
-            const allTasks = (agent.tasks || []);
-            const visibleTasks = showCompletedTasks ? allTasks : allTasks.filter(t => t.status !== 'done' && t.status !== 'cancelled');
-
-            visibleTasks.forEach(task => {
+            const tasksHtml = tasks.map(task => {
                 let icon = '[ ]';
                 let cls = 'status-todo';
-                if (task.status === 'done') { icon = '[x]'; cls = 'status-done'; }
-                if (task.status === 'in-progress') { icon = '[/]'; cls = 'status-in-progress'; }
-                if (task.status === 'blocked') { icon = '[!]'; cls = 'status-blocked'; }
-                if (task.status === 'cancelled') { icon = '[~]'; cls = 'status-cancelled'; }
+                if (task.status === 'done') { icon = '[x]'; }
+                if (task.status === 'in-progress') { icon = '[/]'; }
+                if (task.status === 'blocked') { icon = '[!]'; }
+                if (task.status === 'cancelled') { icon = '[~]'; }
+                return `<li class="mono">${icon} ${escapeHtml(task.text)}</li>`;
+            }).join('');
 
-                tasksHtml += `
-                    <li class="task-item ${cls}">
-                        <span class="task-checkbox">${icon}</span>
-                        <span class="task-text">${task.text}</span>
-                    </li>`;
-            });
-            tasksHtml += '</ul>';
-
-            // Log Logic
             const logs = agent.log || [];
-            let logsToDisplay = logs;
-            const logLimit = 10;
-            const canExpand = logs.length > logLimit;
+            const logsHtml = logs.map(l => `<li class="mono">${escapeHtml(l)}</li>`).join('');
 
-            if (!logExpanded && canExpand) {
-                // Show last 10 logs
-                logsToDisplay = logs.slice(-logLimit);
-            }
-
-            let logsHtml = '<ul class="log-list">';
-            logsToDisplay.forEach(l => {
-                logsHtml += `<li class="log-item">${l}</li>`;
-            });
-            logsHtml += '</ul>';
-
-            if (canExpand) {
-                logsHtml += `
-                    <button class="log-toggle-btn" onclick="toggleLogView()">
-                        ${logExpanded ? '⬆️ Collapse Logs' : '⬇️ Show All Logs (' + logs.length + ')'}
-                    </button>
-                `;
-            }
-
-            let memoryHtml = '';
-            if (agent.memory) {
-                memoryHtml = `
-                    <div class="card" style="margin-top: 1rem;">
-                        <h3>🧠 Long-term Memory (MEMORY.md)</h3>
-                        <pre style="white-space: pre-wrap; background: #000; padding: 10px; border-radius: 4px; border: 1px solid #333; color: #aaa; font-size: 0.9em; max-height: 300px; overflow-y: auto;">${escapeHtml(agent.memory)}</pre>
-                    </div>
-                `;
-            }
-
-            // Documents Section
-            let docsHtml = '';
-            if (agent.docs && agent.docs.length > 0) {
-                docsHtml = `
-                    <div class="card" style="margin-top: 1rem;">
-                        <h3>📂 Knowledge Base / Documents</h3>
-                        <div class="doc-list" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            ${agent.docs.map(doc => `
-                                <button onclick="viewDoc('${agent.id}', '${doc}')" class="doc-btn" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px 10px; cursor: pointer; border-radius: 4px;">
-                                    📄 ${doc}
-                                </button>
-                            `).join('')}
-                        </div>
-                        <div id="doc-viewer" style="margin-top: 10px; display: none;">
-                            <h4 id="doc-title" style="margin-bottom: 5px; color: #aaa;"></h4>
-                            <pre id="doc-content" style="white-space: pre-wrap; background: #111; padding: 10px; border-radius: 4px; border: 1px solid #333; color: #ddd; font-size: 0.9em; max-height: 400px; overflow-y: auto;"></pre>
-                        </div>
-                    </div>
-                `;
-            }
-
-            mainEl.innerHTML = `
-                <div class="detail-header">
-                    <h1>${agent.name}</h1>
-                    <span class="status-badge" style="background-color: ${agent.status.r === '🟢' ? '#1e3a29' : '#3a2e1e'}; color: ${agent.status.r}">
-                        ${agent.status.r} ${agent.status.text}
-                    </span>
+            detailPanel.innerHTML = `
+                <div>
+                    <h2>${escapeHtml(agent.name || '-')}
+                        <span class="status-badge">${statusIcon} ${escapeHtml(statusText)}</span>
+                    </h2>
+                    <div class="muted mono">ID: ${escapeHtml(agent.id)}</div>
                 </div>
-                <div style="font-size: 0.8em; color: #666; margin-bottom: 1rem;">ID: ${agent.id}</div>
-                
-                <div class="card">
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                        <h3>Tasks</h3>
-                        <button class="log-toggle-btn" onclick="toggleTaskView()">
-                            ${showCompletedTasks ? 'Hide completed' : 'Show completed'}
-                        </button>
-                    </div>
-                    <div style="font-size:0.85em; color:#666; margin-bottom:6px;">
-                        ${allTasks.length} total · ${allTasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length} active
-                    </div>
-                    ${(agent.tasks && agent.tasks.length) ? tasksHtml : '<p style="color:#666">No tasks found.</p>'}
+                <div>
+                    <strong>Tasks</strong>
+                    ${tasks.length ? `<ul>${tasksHtml}</ul>` : '<div class="muted">No tasks</div>'}
                 </div>
-
-                <div class="card" style="margin-top: 1rem;">
-                    <h3>Log</h3>
-                    ${(agent.log && agent.log.length) ? logsHtml : '<p style="color:#666">No logs found.</p>'}
+                <div>
+                    <strong>Log</strong>
+                    ${logs.length ? `<ul>${logsHtml}</ul>` : '<div class="muted">No logs</div>'}
                 </div>
-                
-                <div class="card" style="margin-top: 1rem;">
-                    <h3>🧠 Long-term Memory (MEMORY.md)</h3>
-                    ${agent.memory ?
-                    `<pre style="white-space: pre-wrap; background: #000; padding: 10px; border-radius: 4px; border: 1px solid #333; color: #aaa; font-size: 0.9em; max-height: 300px; overflow-y: auto;">${escapeHtml(agent.memory)}</pre>` :
-                    `<p style="color:#666; font-style: italic;">No memory found. Create <code>MEMORY.md</code> in the agent directory.</p>`
-                }
-                </div>
-
-                <div class="card" style="margin-top: 1rem;">
-                    <h3>📂 Knowledge Base / Documents</h3>
-                    ${(agent.docs && agent.docs.length > 0) ?
-                    `<div class="doc-list" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            ${agent.docs.map(doc => `
-                                <button onclick="viewDoc('${agent.id}', '${doc}')" class="doc-btn" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px 10px; cursor: pointer; border-radius: 4px;">
-                                    📄 ${doc}
-                                </button>
-                            `).join('')}
-                        </div>
-                        <div id="doc-viewer" style="margin-top: 10px; display: none;">
-                            <h4 id="doc-title" style="margin-bottom: 5px; color: #aaa;"></h4>
-                            <pre id="doc-content" style="white-space: pre-wrap; background: #111; padding: 10px; border-radius: 4px; border: 1px solid #333; color: #ddd; font-size: 0.9em; max-height: 400px; overflow-y: auto;"></pre>
-                        </div>` :
-                    `<p style="color:#666; font-style: italic;">No documents found. Add <code>*.md</code> files to the agent directory.</p>`
-                }
+                <div>
+                    <strong>MEMORY.md</strong>
+                    ${agent.memory ? `<pre>${escapeHtml(agent.memory)}</pre>` : '<div class="muted">No memory found.</div>'}
                 </div>
             `;
-        } // end renderDetail
+        }
 
-        window.toggleLogView = function() {
-            logExpanded = !logExpanded;
-            renderDetail();
-        };
-
-        window.toggleTaskView = function() {
-            showCompletedTasks = !showCompletedTasks;
-            renderDetail();
-        };
-
-        window.viewDoc = async function (agentId, filename) {
-            const viewer = document.getElementById('doc-viewer');
-            const title = document.getElementById('doc-title');
-            const content = document.getElementById('doc-content');
-
-            title.textContent = `Loading ${filename}...`;
-            viewer.style.display = 'block';
-            content.textContent = '...';
-
-            try {
-                // Encode agentId heavily because it's a path
-                const res = await fetch(`/api/file?id=${encodeURIComponent(agentId)}&file=${encodeURIComponent(filename)}`);
-                if (res.ok) {
-                    const text = await res.text();
-                    title.textContent = filename;
-                    content.textContent = text;
-                } else {
-                    content.textContent = 'Error loading file: ' + res.statusText;
-                }
-            } catch (e) {
-                content.textContent = 'Error: ' + e.message;
-            }
-        };
-
-        // SSE Connection
         function connectSSE() {
             const es = new EventSource('/api/events');
 
@@ -615,31 +479,29 @@
                 const list = JSON.parse(e.data);
                 agents.clear();
                 list.forEach(a => agents.set(a.id, a));
-                renderSidebar();
-                if (selectedAgentId) renderDetail(); // Refresh current view
+                renderTable();
+                renderDetail();
             });
 
             es.addEventListener('update', e => {
                 const agent = JSON.parse(e.data);
                 agents.set(agent.id, agent);
-                renderSidebar();
+                renderTable();
                 if (selectedAgentId === agent.id) renderDetail();
             });
 
             es.addEventListener('remove', e => {
                 const { id } = JSON.parse(e.data);
                 agents.delete(id);
-                if (selectedAgentId === id) {
-                    selectedAgentId = null;
-                    renderDetail();
-                }
-                renderSidebar();
+                if (selectedAgentId === id) selectedAgentId = null;
+                renderTable();
+                renderDetail();
             });
         }
 
-        // Init
+        renderColumnPanel();
+        renderTable();
         connectSSE();
-
     </script>
 </body>
 

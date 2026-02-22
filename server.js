@@ -87,6 +87,22 @@ async function parseProjectMd(filePath) {
             console.error(`Error scanning docs in ${directory}:`, e.message);
         }
 
+        // Optional runtime/usage metrics (if present)
+        const metricsPaths = ['metrics.json', 'usage.json', 'runtime.json'];
+        let metrics = {};
+        for (const filename of metricsPaths) {
+            try {
+                const p = path.join(directory, filename);
+                if (fsSync.existsSync(p)) {
+                    const raw = await fs.readFile(p, 'utf8');
+                    const parsed = JSON.parse(raw);
+                    metrics = { ...metrics, ...parsed };
+                }
+            } catch (e) {
+                console.warn(`Metrics read failed in ${directory}:`, e.message);
+            }
+        }
+
         // Extract Agent Name Priority:
         // 1. MEMORY.md (**Name:** / **Name**: / Name: ...)
         // 2. IDENTITY.md (**Name:** / **Name**: / Name: ...)
@@ -135,6 +151,10 @@ async function parseProjectMd(filePath) {
         // Extract sections flexibly (support headings like # Status, ## Status, or inline "Status:" lines)
         const sections = extractSections(content);
 
+        const defaultModel = metrics.defaultModel || metrics.model || metrics.default_model || null;
+        const todayTokens = metrics.todayTokens ?? metrics.tokens ?? metrics.today_tokens ?? null;
+        const todayCalls = metrics.todayCalls ?? metrics.calls ?? metrics.today_calls ?? null;
+
         return {
             id: directory, // Use directory path as unique ID
             name,
@@ -142,6 +162,9 @@ async function parseProjectMd(filePath) {
             tasks: parseTasks(sections['tasks']),
             log: parseLog(sections['log']),
             todayLogCount: countTodayLogs(sections['log']),
+            defaultModel,
+            todayTokens,
+            todayCalls,
             memory,
             docs, // List of other markdown files
             lastUpdated: mtime.getTime(),
