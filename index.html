@@ -1,294 +1,611 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClawDashboard2</title>
+    <title>CLAW // PROTOCOL</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
         :root {
-            --bg-body: #0b0f14;
-            --bg-panel: #0f1520;
-            --bg-header: #0c111a;
-            --border-color: #1f2a37;
-            --text-primary: #e5e7eb;
-            --text-secondary: #9aa4b2;
-            --accent: #60a5fa;
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --radius: 6px;
-            --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            --c-void: #030303;
+            --c-surface: #0a0a0a;
+            --c-surface-elev: #111111;
+            --c-border: #333333;
+            --c-border-active: #555555;
+            
+            --c-text-main: #e0e0e0;
+            --c-text-dim: #666666;
+            --c-text-ghost: #333333;
+            
+            --c-accent: #ccff00; /* Acid Lime */
+            --c-accent-dim: rgba(204, 255, 0, 0.1);
+            --c-secondary: #00f0ff; /* Cyan */
+            --c-danger: #ff003c;
+            --c-warn: #ffae00;
+            --c-success: #00ff9d;
+
+            --f-head: "Chakra Petch", sans-serif;
+            --f-mono: "JetBrains Mono", monospace;
+
+            --ease-tech: cubic-bezier(0.23, 1, 0.32, 1);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
+        * { box-sizing: border-box; outline: none; }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            background: var(--bg-body);
-            color: var(--text-primary);
+            margin: 0;
+            background-color: var(--c-void);
+            color: var(--c-text-main);
+            font-family: var(--f-mono);
+            font-size: 13px;
+            overflow-x: hidden;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
             min-height: 100vh;
             display: grid;
-            grid-template-rows: 56px 1fr;
+            grid-template-rows: auto 1fr;
         }
 
+        /* SCANLINE OVERLAY */
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.6;
+        }
+
+        /* HEADER */
         header {
-            background: var(--bg-header);
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--c-border);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(3, 3, 3, 0.8);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-group {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 0 16px;
+            gap: 15px;
         }
 
-        .logo { font-weight: 700; letter-spacing: 0.5px; }
-        .meta { font-size: 0.9rem; color: var(--text-secondary); }
-
-        main {
-            padding: 18px;
+        .brand-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--c-accent);
+            color: var(--c-void);
             display: grid;
-            gap: 16px;
+            place-items: center;
+            font-family: var(--f-head);
+            font-weight: 700;
+            font-size: 18px;
+            clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
         }
 
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-title {
+            font-family: var(--f-head);
+            font-weight: 700;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .brand-sub {
+            font-size: 10px;
+            color: var(--c-text-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .status-indicator {
+            font-family: var(--f-mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border: 1px solid var(--c-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--c-surface);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--c-text-dim);
+            border-radius: 50%;
+        }
+        .status-dot.active { background: var(--c-success); box-shadow: 0 0 8px var(--c-success); }
+        .status-dot.error { background: var(--c-danger); box-shadow: 0 0 8px var(--c-danger); }
+
+        /* MAIN LAYOUT */
+        main {
+            padding: 30px;
+            display: grid;
+            gap: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* PANELS */
         .panel {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            padding: 12px;
+            background: var(--c-surface);
+            border: 1px solid var(--c-border);
+            position: relative;
+            padding: 20px;
+            transition: border-color 0.3s var(--ease-tech);
+        }
+        
+        .panel:hover {
+            border-color: var(--c-border-active);
         }
 
+        .panel::before {
+            content: "";
+            position: absolute;
+            top: -1px; left: -1px;
+            width: 10px; height: 10px;
+            border-top: 2px solid var(--c-accent);
+            border-left: 2px solid var(--c-accent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .panel:hover::before { opacity: 1; }
+
+        .panel-header {
+            font-family: var(--f-head);
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--c-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 8px;
+        }
+
+        /* CONTROLS */
         .controls {
             display: flex;
-            gap: 12px;
-            align-items: center;
+            gap: 20px;
             flex-wrap: wrap;
         }
 
-        .panel { overflow-x: auto; }
-        ul.mono, .mono { word-break: break-all; }
-
-        .controls label { color: var(--text-secondary); font-size: 0.85rem; margin-right: 6px; }
-        select, button, input[type="checkbox"] {
-            background: #0b1220;
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            border-radius: 6px;
-            padding: 6px 10px;
-            font-size: 0.9rem;
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         }
 
-        .doc-btn {
-            background: #0b1220;
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 0.85rem;
+        label {
+            font-size: 10px;
+            color: var(--c-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        button { cursor: pointer; }
-        button:hover { border-color: #334155; }
-
-        .dropdown { position: relative; }
-        .dropdown-panel {
-            position: absolute;
-            top: 36px;
-            left: 0;
-            min-width: 240px;
-            background: #0b1220;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 10px;
-            display: none;
-            z-index: 10;
+        select, button, input {
+            background: var(--c-surface-elev);
+            border: 1px solid var(--c-border);
+            color: var(--c-text-main);
+            font-family: var(--f-mono);
+            font-size: 12px;
+            padding: 8px 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
         }
-        .dropdown-panel.open { display: block; }
-        .dropdown-panel label { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-        thead th {
+        select:hover, button:hover, input:hover {
+            border-color: var(--c-secondary);
+            color: var(--c-secondary);
+        }
+        
+        button:active {
+            background: var(--c-secondary);
+            color: var(--c-void);
+        }
+
+        /* TABLE */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
             text-align: left;
-            color: var(--text-secondary);
-            font-weight: 600;
-            padding: 10px 8px;
-            border-bottom: 1px solid var(--border-color);
+            font-family: var(--f-head);
+            color: var(--c-text-dim);
+            font-weight: 500;
+            padding: 10px;
+            border-bottom: 1px solid var(--c-border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 12px;
         }
-        tbody td {
-            padding: 10px 8px;
-            border-bottom: 1px solid rgba(31, 42, 55, 0.6);
-            vertical-align: top;
+
+        .data-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            vertical-align: middle;
         }
-        tbody tr:hover { background: rgba(96, 165, 250, 0.08); cursor: pointer; }
-        .mono { font-family: var(--mono); }
+
+        .data-table tr {
+            transition: background 0.1s;
+        }
+
+        .data-table tr:hover {
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+        }
+        
+        .data-table tr:hover td {
+            color: var(--c-text-main);
+        }
+
+        .table-panel { padding: 0; }
+        .table-panel .panel-header {
+            margin-bottom: 0;
+            padding: 16px 16px 12px;
+        }
+        .table-scroll {
+            padding: 10px 16px 16px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .table-scroll .data-table { min-width: 720px; }
 
         .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             padding: 2px 8px;
-            border-radius: 999px;
-            border: 1px solid var(--border-color);
-            font-size: 0.85rem;
-            white-space: nowrap;
+            font-size: 11px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid transparent;
         }
-        .status-color { border-color: transparent; }
-        .status-green { color: var(--success); }
-        .status-blue { color: #60a5fa; }
-        .status-yellow { color: var(--warning); }
-        .status-orange { color: #fb923c; }
-        .status-red { color: var(--danger); }
+        
+        .status-idle { color: var(--c-text-dim); border-color: var(--c-border); }
+        .status-working { color: var(--c-secondary); border-color: var(--c-secondary); background: rgba(0, 240, 255, 0.05); }
+        .status-alert { color: var(--c-warn); border-color: var(--c-warn); }
+        .status-error { color: var(--c-danger); border-color: var(--c-danger); }
+        
+        .mono-val {
+            font-family: var(--f-mono);
+            color: var(--c-secondary);
+        }
 
-        .detail {
+        /* DETAILS PANEL */
+        .detail-grid {
             display: grid;
-            gap: 12px;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
         }
-        .detail h2 { font-size: 1.1rem; margin-bottom: 6px; }
-        pre { white-space: pre-wrap; color: #cbd5e1; background: #0a0f16; padding: 10px; border-radius: 6px; border: 1px solid #111827; max-height: 300px; overflow: auto; }
 
-        .muted { color: var(--text-secondary); }
+        .detail-sidebar {
+            border-right: 1px solid var(--c-border);
+            padding-right: 20px;
+        }
 
+        .detail-content h2 {
+            font-family: var(--f-head);
+            font-size: 24px;
+            margin: 0 0 10px 0;
+            color: var(--c-accent);
+            text-transform: uppercase;
+        }
+
+        .tag {
+            font-size: 10px;
+            border: 1px solid var(--c-border);
+            padding: 2px 6px;
+            color: var(--c-text-dim);
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .task-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-item {
+            display: flex;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .task-icon { width: 16px; text-align: center; font-weight: bold; }
+        .task-done { color: var(--c-success); }
+        .task-todo { color: var(--c-text-dim); }
+        .task-prog { color: var(--c-warn); }
+
+        pre.code-block {
+            background: #080808;
+            border: 1px solid var(--c-border);
+            padding: 15px;
+            color: var(--c-text-dim);
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.5;
+            max-height: 400px;
+        }
+        
+        textarea.editor {
+            width: 100%;
+            background: #080808;
+            border: 1px solid var(--c-border);
+            color: var(--c-text-main);
+            font-family: var(--f-mono);
+            padding: 15px;
+            min-height: 300px;
+            resize: vertical;
+        }
+        
+        textarea.editor:focus {
+            border-color: var(--c-accent);
+        }
+
+        /* DOCS GRID */
+        .docs-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .doc-chip {
+            background: var(--c-surface-elev);
+            border: 1px solid var(--c-border);
+            padding: 6px 10px;
+            font-size: 11px;
+            color: var(--c-text-dim);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .doc-chip:hover, .doc-chip.active {
+            border-color: var(--c-accent);
+            color: var(--c-accent);
+            background: var(--c-accent-dim);
+        }
+
+        /* CONFIG VIEWER */
+        .config-toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .config-toolbar .meta {
+            font-size: 10px;
+            color: var(--c-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .config-pre {
+            background: #050505;
+            border: 1px solid var(--c-accent);
+            color: var(--c-text-main);
+            padding: 14px;
+            font-size: 12px;
+            line-height: 1.55;
+            max-height: 360px;
+            overflow: auto;
+        }
+        .config-pre strong {
+            color: var(--c-accent);
+        }
+
+        /* RESPONSIVE */
         @media (max-width: 900px) {
-            main { padding: 12px; }
-            table { font-size: 0.85rem; }
-            thead { display: none; }
-            tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 0; }
-            tbody td { border: none; }
-            tbody td::before {
-                content: attr(data-label);
-                display: block;
-                color: var(--text-secondary);
-                font-size: 0.75rem;
-                margin-bottom: 2px;
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+                padding: 16px;
             }
-            .controls { flex-direction: column; align-items: stretch; }
-            .controls > div { width: 100%; }
-            select, button { width: 100%; }
-            .panel { padding: 10px; }
-            .logo { font-size: 1rem; }
+            .status-indicator {
+                width: 100%;
+                justify-content: space-between;
+                font-size: 10px;
+            }
+            .brand-logo { width: 28px; height: 28px; font-size: 16px; }
+            .brand-title { font-size: 20px; }
+            .brand-sub { font-size: 9px; letter-spacing: 1.6px; }
+            main { padding: 18px; gap: 16px; }
+            .panel { padding: 16px; }
+            .table-panel { padding: 0; }
+            .table-panel .panel-header { padding: 12px 12px 10px; }
+            .table-scroll { padding: 8px 12px 12px; }
+            .controls { gap: 12px; }
+            .control-group { width: 100%; }
+            select, button, input { width: 100%; font-size: 11px; }
+            .data-table th { font-size: 11px; padding: 8px 8px; }
+            .data-table td { padding: 10px 8px; font-size: 12px; }
+            .detail-grid { grid-template-columns: 1fr; }
+            .detail-sidebar { border-right: none; border-bottom: 1px solid var(--c-border); padding-bottom: 16px; }
         }
+
+        @media (max-width: 640px) {
+            main { padding: 12px; }
+            .panel { padding: 12px; }
+            .table-panel .panel-header { padding: 10px 10px 8px; }
+            .table-scroll { padding: 6px 10px 10px; }
+            .status-indicator { padding: 4px 10px; font-size: 9px; }
+            label { font-size: 9px; letter-spacing: 0.8px; }
+            select, button, input { font-size: 10px; padding: 6px 10px; }
+            .brand-title { font-size: 18px; }
+            .brand-sub { font-size: 8px; letter-spacing: 1.2px; }
+            .status-badge { font-size: 10px; }
+        }
+
+        /* UTILS */
+        .text-accent { color: var(--c-accent); }
+        .text-dim { color: var(--c-text-dim); }
+        .mt-4 { margin-top: 1rem; }
     </style>
 </head>
-
 <body>
+
     <header>
-        <div class="logo">📟 ClawDashboard2 Console</div>
-        <div class="meta" id="connection-status">Connecting...</div>
+        <div class="brand-group">
+            <div class="brand-logo">C</div>
+            <div class="brand-text">
+                <div class="brand-title">Dashboard2</div>
+                <div class="brand-sub">Protocol 7 // Signal Intercept</div>
+            </div>
+        </div>
+        <div class="status-indicator">
+            <div class="status-dot" id="conn-dot"></div>
+            <span id="conn-text">OFFLINE</span>
+        </div>
     </header>
 
     <main>
+        <!-- CONTROLS -->
         <div class="panel">
+            <div class="panel-header">
+                <span>View Configuration</span>
+                <span>:::</span>
+            </div>
             <div class="controls">
-                <div>
-                    <label>Sort by</label>
+                <div class="control-group">
+                    <label>Sort Parameter</label>
                     <select id="sort-key">
-                        <option value="status">Status</option>
-                        <option value="name">Agent Name</option>
-                        <option value="todayLogCount">Today Logs</option>
-                        <option value="lastUpdated">Last Updated</option>
-                        <option value="defaultModel">Default Model</option>
-                        <option value="taskOpen">Open Tasks</option>
-                        <option value="taskTotal">Total Tasks</option>
+                        <option value="status">Status Priority</option>
+                        <option value="name">Entity Name</option>
+                        <option value="todayLogCount">Activity Volume</option>
+                        <option value="lastUpdated">Last Signal</option>
+                        <option value="defaultModel">Model Class</option>
+                        <option value="taskOpen">Task Load</option>
                     </select>
                 </div>
-
-                <div>
-                    <label>Direction</label>
+                <div class="control-group">
+                    <label>Sequence</label>
                     <select id="sort-dir">
-                        <option value="asc">Asc</option>
-                        <option value="desc">Desc</option>
+                        <option value="asc">Ascending</option>
+                        <option value="desc">Descending</option>
                     </select>
                 </div>
-
-                <div>
-                    <label>Color</label>
+                <div class="control-group">
+                    <label>Display Mode</label>
                     <select id="color-mode">
-                        <option value="off">Off (color-blind)</option>
-                        <option value="on">On</option>
+                        <option value="off">Monochrome</option>
+                        <option value="on">Full Spectrum</option>
                     </select>
-                </div>
-
-                <div class="dropdown">
-                    <button id="column-btn">Columns ▾</button>
-                    <div class="dropdown-panel" id="column-panel"></div>
                 </div>
             </div>
         </div>
 
-        <div class="panel">
-            <table id="agent-table">
-                <thead><tr id="table-head"></tr></thead>
-                <tbody id="table-body"></tbody>
-            </table>
+        <!-- AGENT TABLE -->
+        <div class="panel table-panel">
+            <div class="panel-header">
+                <span>Active Agents</span>
+                <span id="agent-count" class="text-accent">0</span>
+            </div>
+            <div class="table-scroll">
+                <table class="data-table" id="agent-table">
+                    <thead><tr id="table-head"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="panel" id="openclaw-panel">
-            <div class="muted">Loading OpenClaw config...</div>
+        <!-- SYSTEM INFO -->
+        <div class="panel" id="system-panel">
+            <div class="panel-header">System Metrics</div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px;">
+                <div id="openclaw-panel">Loading Config...</div>
+                <div id="sessions-panel">Loading Sessions...</div>
+            </div>
         </div>
 
-        <div class="panel" id="sessions-panel">
-            <div class="muted">Loading sessions...</div>
+        <!-- OPENCLAW CONFIG VIEWER -->
+        <div class="panel" id="config-panel">
+            <div class="panel-header">
+                <span>OpenClaw Config Viewer</span>
+                <div class="config-toolbar">
+                    <span class="meta" id="config-meta">RAW JSON</span>
+                    <button onclick="reloadConfig()">REFRESH</button>
+                    <button onclick="copyConfig()">COPY</button>
+                </div>
+            </div>
+            <pre id="config-raw" class="config-pre">LOADING...</pre>
         </div>
 
+        <!-- DETAIL VIEW -->
         <div class="panel detail" id="detail-panel">
-            <div class="muted">Select an agent to view details.</div>
+            <div class="panel-header">Entity Inspection</div>
+            <div class="text-dim" style="padding: 20px; text-align: center;">SELECT TARGET FROM LIST</div>
         </div>
     </main>
 
     <script>
+        // --- LOGIC ---
         function escapeHtml(text) {
             if (!text) return text;
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
         const DEFAULT_SETTINGS = {
             sortKey: 'status',
             sortDir: 'asc',
-            colorMode: 'off',
-            columns: {
-                name: true,
-                status: true,
-                todayLogCount: true,
-                lastUpdated: true,
-                defaultModel: true,
-                tasks: true,
-            }
+            colorMode: 'on',
+            columns: { name: true, status: true, todayLogCount: true, lastUpdated: true, defaultModel: true, tasks: true }
         };
 
         function loadSettings() {
             try {
-                const saved = JSON.parse(localStorage.getItem('clawDashboardSettings'));
+                const saved = JSON.parse(localStorage.getItem('clawDashboardProtocol7'));
                 return { ...DEFAULT_SETTINGS, ...saved, columns: { ...DEFAULT_SETTINGS.columns, ...(saved?.columns || {}) } };
-            } catch {
-                return DEFAULT_SETTINGS;
-            }
+            } catch { return DEFAULT_SETTINGS; }
         }
 
-        function saveSettings() {
-            localStorage.setItem('clawDashboardSettings', JSON.stringify(settings));
-        }
+        function saveSettings() { localStorage.setItem('clawDashboardProtocol7', JSON.stringify(settings)); }
 
         let settings = loadSettings();
         let agents = new Map();
         let selectedAgentId = null;
         let selectedDoc = null;
 
-        const statusEl = document.getElementById('connection-status');
+        // Elements
+        const connDot = document.getElementById('conn-dot');
+        const connText = document.getElementById('conn-text');
         const sortKeyEl = document.getElementById('sort-key');
         const sortDirEl = document.getElementById('sort-dir');
         const colorModeEl = document.getElementById('color-mode');
-        const columnBtn = document.getElementById('column-btn');
-        const columnPanel = document.getElementById('column-panel');
         const tableHead = document.getElementById('table-head');
         const tableBody = document.getElementById('table-body');
-        const openclawPanel = document.getElementById('openclaw-panel');
-        const sessionsPanel = document.getElementById('sessions-panel');
         const detailPanel = document.getElementById('detail-panel');
+        const agentCountEl = document.getElementById('agent-count');
+        const configRawEl = document.getElementById('config-raw');
+        const configMetaEl = document.getElementById('config-meta');
 
+        // Init UI
         sortKeyEl.value = settings.sortKey;
         sortDirEl.value = settings.sortDir;
         colorModeEl.value = settings.colorMode;
@@ -297,134 +614,78 @@
         sortDirEl.onchange = () => { settings.sortDir = sortDirEl.value; saveSettings(); renderTable(); };
         colorModeEl.onchange = () => { settings.colorMode = colorModeEl.value; saveSettings(); renderTable(); };
 
-        columnBtn.onclick = () => columnPanel.classList.toggle('open');
-        document.addEventListener('click', (e) => {
-            if (!columnPanel.contains(e.target) && e.target !== columnBtn) {
-                columnPanel.classList.remove('open');
-            }
-        });
-
         const COLUMN_DEFS = [
-            { key: 'name', label: 'Agent Name' },
-            { key: 'status', label: 'Status' },
-            { key: 'todayLogCount', label: 'Today Logs' },
-            { key: 'lastUpdated', label: 'Last Updated' },
-            { key: 'defaultModel', label: 'Default Model' },
-            { key: 'tasks', label: 'Tasks (total/open)' },
+            { key: 'name', label: 'Entity ID' },
+            { key: 'status', label: 'Current State' },
+            { key: 'todayLogCount', label: 'Ops/Day' },
+            { key: 'lastUpdated', label: 'Last Signal' },
+            { key: 'defaultModel', label: 'Model Core' },
+            { key: 'tasks', label: 'Tasks (Tot/Open)' },
         ];
 
-        function renderColumnPanel() {
-            columnPanel.innerHTML = COLUMN_DEFS.map(col => {
-                const checked = settings.columns[col.key] ? 'checked' : '';
-                return `
-                    <label>
-                        <input type="checkbox" data-col="${col.key}" ${checked} />
-                        ${col.label}
-                    </label>
-                `;
-            }).join('');
-
-            columnPanel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                cb.onchange = (e) => {
-                    const key = e.target.getAttribute('data-col');
-                    settings.columns[key] = e.target.checked;
-                    saveSettings();
-                    renderTable();
-                };
-            });
-        }
-
-        function statusRank(agent) {
-            const r = agent?.status?.r || '🟢';
-            const order = { '🔴': 0, '🟠': 1, '🟡': 2, '🔵': 3, '🟢': 4 };
-            return (r in order) ? order[r] : 5;
+        function getStatusProps(r) {
+            if (r === '🔴') return { class: 'status-error', text: 'OFFLINE' };
+            if (r === '🟠') return { class: 'status-alert', text: 'BUSY' };
+            if (r === '🟡') return { class: 'status-alert', text: 'WAITING' };
+            if (r === '🔵') return { class: 'status-working', text: 'WORKING' };
+            return { class: 'status-idle', text: 'IDLE' };
         }
 
         function getSortValue(agent, key) {
             const tasks = agent.tasks || [];
             const open = tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
-            const total = tasks.length;
+            const statusRank = { '🔴': 0, '🟠': 1, '🟡': 2, '🔵': 3, '🟢': 4 };
+            const r = agent.status?.r || '🟢';
 
             switch (key) {
-                case 'status': return statusRank(agent);
+                case 'status': return statusRank[r] ?? 5;
                 case 'name': return (agent.name || '').toLowerCase();
                 case 'todayLogCount': return agent.todayLogCount || 0;
                 case 'lastUpdated': return agent.lastUpdated || 0;
                 case 'defaultModel': return (agent.defaultModel || '').toLowerCase();
                 case 'taskOpen': return open;
-                case 'taskTotal': return total;
                 default: return 0;
             }
         }
 
-        function sortAgents(list) {
-            const dir = settings.sortDir === 'asc' ? 1 : -1;
-            return list.sort((a, b) => {
-                const va = getSortValue(a, settings.sortKey);
-                const vb = getSortValue(b, settings.sortKey);
-                if (va < vb) return -1 * dir;
-                if (va > vb) return 1 * dir;
-                return (b.lastUpdated || 0) - (a.lastUpdated || 0);
-            });
-        }
-
         function formatTime(ts) {
-            if (!ts) return '-';
-            try {
-                return new Date(ts).toLocaleString();
-            } catch {
-                return '-';
-            }
-        }
-
-        function getStatusClass(r) {
-            if (r === '🔴') return 'status-red';
-            if (r === '🟠') return 'status-orange';
-            if (r === '🟡') return 'status-yellow';
-            if (r === '🔵') return 'status-blue';
-            return 'status-green';
+            if (!ts) return '--:--';
+            const d = new Date(ts);
+            return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
         }
 
         function renderTable() {
-            renderColumnPanel();
-            const cols = COLUMN_DEFS.filter(c => settings.columns[c.key]);
+            tableHead.innerHTML = COLUMN_DEFS.map(c => `<th>${c.label}</th>`).join('');
+            
+            const list = Array.from(agents.values());
+            agentCountEl.textContent = list.length;
 
-            tableHead.innerHTML = cols.map(c => `<th>${c.label}</th>`).join('');
-            const sorted = sortAgents(Array.from(agents.values()));
+            const dir = settings.sortDir === 'asc' ? 1 : -1;
+            list.sort((a, b) => {
+                const va = getSortValue(a, settings.sortKey);
+                const vb = getSortValue(b, settings.sortKey);
+                return va < vb ? -1 * dir : (va > vb ? 1 * dir : 0);
+            });
 
-            tableBody.innerHTML = sorted.map(agent => {
+            tableBody.innerHTML = list.map(agent => {
                 const tasks = agent.tasks || [];
                 const open = tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
                 const total = tasks.length;
-                const statusIcon = agent.status?.r || '🟢';
-                const statusText = agent.status?.text || 'idle';
-                const statusClass = settings.colorMode === 'on' ? `status-color ${getStatusClass(statusIcon)}` : '';
+                
+                const sRaw = agent.status?.r || '🟢';
+                const sTextRaw = agent.status?.text || 'idle';
+                const sProps = getStatusProps(sRaw);
+                const sClass = settings.colorMode === 'on' ? sProps.class : 'status-idle';
 
-                const rowCells = cols.map(col => {
-                    switch (col.key) {
-                        case 'name':
-                            return `<td data-label="${col.label}">${escapeHtml(agent.name || '-')}</td>`;
-                        case 'status':
-                            return `<td data-label="${col.label}"><span class="status-badge ${statusClass}">${statusIcon} ${escapeHtml(statusText)}</span></td>`;
-                        case 'todayLogCount':
-                            return `<td data-label="${col.label}" class="mono">${agent.todayLogCount ?? 0}</td>`;
-                        case 'lastUpdated':
-                            return `<td data-label="${col.label}" class="mono">${formatTime(agent.lastUpdated)}</td>`;
-                        case 'defaultModel':
-                            return `<td data-label="${col.label}" class="mono">${escapeHtml(agent.defaultModel || '-') }</td>`;
-                        case 'tasks':
-                            return `<td data-label="${col.label}" class="mono">${total}/${open}</td>`;
-                        default:
-                            return `<td data-label="${col.label}">-</td>`;
-                    }
-                }).join('');
-
-                return `<tr data-id="${agent.id}">${rowCells}</tr>`;
+                return `<tr onclick="selectAgent('${agent.id}')">
+                    <td data-label="Entity ID" style="font-weight:600; color:var(--c-text-main)">${escapeHtml(agent.name || '-')}</td>
+                    <td data-label="State"><span class="status-badge ${sClass}">${sRaw} ${escapeHtml(sTextRaw)}</span></td>
+                    <td data-label="Ops/Day" class="mono-val">${agent.todayLogCount ?? 0}</td>
+                    <td data-label="Last Signal" class="mono-val">${formatTime(agent.lastUpdated)}</td>
+                    <td data-label="Model Core">${escapeHtml(agent.defaultModel || '-')}</td>
+                    <td data-label="Tasks" class="mono-val">${total} / ${open}</td>
+                </tr>`;
             }).join('');
-
-            tableBody.querySelectorAll('tr').forEach(row => {
-                row.onclick = () => selectAgent(row.getAttribute('data-id'));
-            });
         }
 
         function selectAgent(id) {
@@ -436,13 +697,9 @@
         async function loadDoc(agentId, filename) {
             try {
                 const res = await fetch(`/api/file?id=${encodeURIComponent(agentId)}&file=${encodeURIComponent(filename)}`);
-                if (res.ok) {
-                    return await res.text();
-                }
-                return `Error loading file: ${res.statusText}`;
-            } catch (e) {
-                return `Error: ${e.message}`;
-            }
+                if (res.ok) return await res.text();
+                return `[ERROR] Load Failed: ${res.statusText}`;
+            } catch (e) { return `[ERROR] ${e.message}`; }
         }
 
         async function saveDoc(agentId, filename, content) {
@@ -452,73 +709,67 @@
                 body: content
             });
             if (!res.ok) throw new Error(await res.text());
-            return true;
         }
 
         function renderDetail() {
             const agent = agents.get(selectedAgentId);
             if (!agent) {
-                detailPanel.innerHTML = '<div class="muted">Select an agent to view details.</div>';
+                detailPanel.innerHTML = '<div class="panel-header">Entity Inspection</div><div class="text-dim" style="padding:20px;text-align:center">SELECT TARGET</div>';
                 return;
             }
 
-            const statusIcon = agent.status?.r || '🟢';
-            const statusText = agent.status?.text || 'idle';
             const tasks = agent.tasks || [];
-
-            const tasksHtml = tasks.map(task => {
-                let icon = '[ ]';
-                if (task.status === 'done') { icon = '[x]'; }
-                if (task.status === 'in-progress') { icon = '[/]'; }
-                if (task.status === 'blocked') { icon = '[!]'; }
-                if (task.status === 'cancelled') { icon = '[~]'; }
-                return `<li class="mono">${icon} ${escapeHtml(task.text)}</li>`;
+            const tasksHtml = tasks.map(t => {
+                let icon = '○';
+                let cls = 'task-todo';
+                if (t.status === 'done') { icon = '●'; cls = 'task-done'; }
+                if (t.status === 'in-progress') { icon = '◐'; cls = 'task-prog'; }
+                if (t.status === 'cancelled') { icon = '×'; cls = 'task-todo'; }
+                return `<li class="task-item ${cls}"><span class="task-icon">${icon}</span> <span>${escapeHtml(t.text)}</span></li>`;
             }).join('');
 
-            const logs = agent.log || [];
-            const logsHtml = logs.map(l => `<li class="mono">${escapeHtml(l)}</li>`).join('');
-
             const docs = (agent.docs || []).sort();
-            const docsButtons = docs.map(doc => {
-                const active = selectedDoc === doc ? 'style="border-color:#60a5fa"' : '';
-                return `<button class="doc-btn" ${active} onclick="viewDoc('${agent.id}', '${doc}')">📄 ${doc}</button>`;
+            const docsHtml = docs.map(doc => {
+                const act = selectedDoc === doc ? 'active' : '';
+                return `<button class="doc-chip ${act}" onclick="viewDoc('${agent.id}', '${doc}')">${doc}</button>`;
             }).join('');
 
             detailPanel.innerHTML = `
-                <div>
-                    <h2>${escapeHtml(agent.name || '-')}
-                        <span class="status-badge">${statusIcon} ${escapeHtml(statusText)}</span>
-                    </h2>
-                    <div class="muted mono">ID: ${escapeHtml(agent.id)}</div>
-                    <div style="margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <label class="muted">Agent Name</label>
-                        <input id="agent-name-input" value="${escapeHtml(agent.name || '')}" style="background:#0b1220;border:1px solid var(--border-color);color:#fff;border-radius:6px;padding:4px 8px;" />
-                        <button onclick="saveAgentName('${agent.id}')">Save</button>
-                        <span class="muted" style="font-size:0.8em;">(writes to IDENTITY.md)</span>
+                <div class="panel-header">ENTITY: ${escapeHtml(agent.name).toUpperCase()}</div>
+                <div class="detail-grid">
+                    <div class="detail-sidebar">
+                        <div class="tag">ID: ${escapeHtml(agent.id).split('/').pop()}</div>
+                        <div style="margin-bottom:20px">
+                            <label>Designation Override</label>
+                            <div style="display:flex; gap:5px; margin-top:5px;">
+                                <input id="name-in" value="${escapeHtml(agent.name || '')}" style="width:100%">
+                                <button onclick="saveName('${agent.id}')">SET</button>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom:20px">
+                            <label>Mission Objectives</label>
+                            <ul class="task-list">
+                                ${tasksHtml || '<li class="text-dim">// No active directives</li>'}
+                            </ul>
+                        </div>
+                        
+                        <div>
+                             <label>Operation Logs</label>
+                             <div style="max-height:200px; overflow-y:auto; font-size:11px; margin-top:5px; color:var(--c-text-dim)">
+                                ${(agent.log || []).map(l => `<div>> ${escapeHtml(l)}</div>`).join('')}
+                             </div>
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <strong>Tasks</strong>
-                    ${tasks.length ? `<ul>${tasksHtml}</ul>` : '<div class="muted">No tasks</div>'}
-                </div>
-                <div>
-                    <strong>Log</strong>
-                    ${logs.length ? `<ul>${logsHtml}</ul>` : '<div class="muted">No logs</div>'}
-                </div>
-                <div>
-                    <strong>MEMORY.md</strong>
-                    ${agent.memory ? `<pre>${escapeHtml(agent.memory)}</pre>` : '<div class="muted">No memory found.</div>'}
-                </div>
-                <div>
-                    <strong>All Markdown (including daily notes)</strong>
-                    ${docs.length ? `
-                        <div style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0;">
-                            ${docsButtons}
-                        </div>
-                        <div id="doc-viewer" style="margin-top:8px;">
-                            <div class="muted">Select a document to preview.</div>
-                        </div>
-                    ` : '<div class="muted">No extra markdown files.</div>'}
+                    
+                    <div class="detail-content">
+                        <h2>Memory Core</h2>
+                        <pre class="code-block">${escapeHtml(agent.memory || '// NO MEMORY DATA FOUND')}</pre>
+
+                        <h2 class="mt-4">Supplemental Data</h2>
+                        <div class="docs-grid">${docsHtml}</div>
+                        <div id="doc-viewer"></div>
+                    </div>
                 </div>
             `;
         }
@@ -527,15 +778,16 @@
             selectedDoc = filename;
             const content = await loadDoc(agentId, filename);
             const viewer = document.getElementById('doc-viewer');
-            if (viewer) {
-                viewer.innerHTML = `
-                    <div class="muted" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                        <span>${filename}</span>
-                        <button onclick="saveDocContent('${agentId}', '${filename}')">Save</button>
-                    </div>
-                    <textarea id="doc-editor" style="width:100%; min-height:260px; background:#0b1220; color:#e5e7eb; border:1px solid var(--border-color); border-radius:6px; padding:8px; font-family:var(--mono);">${escapeHtml(content)}</textarea>
-                `;
-            }
+            renderDetail(); // Refresh chips
+            
+            // Re-get viewer because renderDetail wiped it
+            document.getElementById('doc-viewer').innerHTML = `
+                <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; background:var(--c-surface-elev); padding:5px 10px; border:1px solid var(--c-border)">
+                    <span class="text-accent">${filename}</span>
+                    <button onclick="saveDocContent('${agentId}', '${filename}')">COMMIT CHANGE</button>
+                </div>
+                <textarea id="doc-editor" class="editor">${escapeHtml(content)}</textarea>
+            `;
         };
 
         window.saveDocContent = async function(agentId, filename) {
@@ -543,148 +795,114 @@
             if (!editor) return;
             try {
                 await saveDoc(agentId, filename, editor.value);
-                await refreshAgents();
-                alert('Saved');
-            } catch (e) {
-                alert('Save failed: ' + e.message);
-            }
+                alert('DATA COMMITTED');
+            } catch (e) { alert('COMMIT FAILED: ' + e.message); }
+        };
+        
+        window.saveName = async function(agentId) {
+             const val = document.getElementById('name-in').value.trim();
+             const content = `# Identity\n\n- **Name**: ${val}\n`;
+             try {
+                await saveDoc(agentId, 'IDENTITY.md', content);
+                alert('IDENTITY UPDATED');
+             } catch (e) { alert('UPDATE FAILED: ' + e.message); }
         };
 
-        window.saveAgentName = async function(agentId) {
-            const input = document.getElementById('agent-name-input');
-            if (!input) return;
-            const name = input.value.trim();
-            const identity = `# Identity\n\n- **Name**: ${name}\n`;
+        // --- DATA LOADERS ---
+        async function loadSysInfo() {
             try {
-                await saveDoc(agentId, 'IDENTITY.md', identity);
-                await refreshAgents();
-                alert('Saved');
-            } catch (e) {
-                alert('Save failed: ' + e.message);
-            }
-        };
+                const [resClaw, resSess] = await Promise.all([
+                    fetch('/api/openclaw'), fetch('/api/sessions')
+                ]);
+                
+                const claw = await resClaw.json();
+                const sess = await resSess.json();
+                
+                document.getElementById('openclaw-panel').innerHTML = `
+                    <label>OpenClaw Config</label>
+                    <div class="mono-val">${escapeHtml(claw.path || 'Unknown')}</div>
+                    <div style="margin-top:5px; font-size:11px; color:var(--c-text-dim)">
+                        Agents: ${(claw.agents || []).length} | Channels: ${(claw.channels || []).length}
+                    </div>
+                `;
+                
+                document.getElementById('sessions-panel').innerHTML = `
+                    <label>Active Sessions</label>
+                    <div class="mono-val">${sess.sessions?.length || 0} Connected</div>
+                    <div style="margin-top:5px; font-size:11px; color:var(--c-text-dim)">
+                        Latest: ${escapeHtml(sess.sessions?.[0]?.model || 'None')}
+                    </div>
+                `;
 
-        async function refreshAgents() {
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadConfigRaw() {
             try {
-                const res = await fetch('/api/agents');
-                if (res.ok) {
-                    const list = await res.json();
-                    agents.clear();
-                    list.forEach(a => agents.set(a.id, a));
-                    renderTable();
-                    renderDetail();
+                const res = await fetch('/api/openclaw/raw');
+                if (!res.ok) {
+                    configRawEl.textContent = `[ERROR] ${res.status} ${res.statusText}`;
+                    configMetaEl.textContent = 'RAW JSON';
+                    return;
                 }
-            } catch {}
-        }
-
-        async function loadOpenclawSummary() {
-            try {
-                const res = await fetch('/api/openclaw');
-                if (!res.ok) throw new Error('Failed to load');
-                const data = await res.json();
-
-                const agents = data.agents || [];
-                const bindings = data.bindings || [];
-                const channels = data.channels || [];
-
-                openclawPanel.innerHTML = `
-                    <h3 style="margin-bottom:6px;">OpenClaw Config (read-only)</h3>
-                    <div class="muted mono" style="margin-bottom:8px;">${escapeHtml(data.path || '')}</div>
-
-                    <div style="margin-bottom:12px;">
-                        <strong>Defaults</strong>
-                        <div class="mono">Model: ${escapeHtml(data.defaults?.model || '-') }</div>
-                        <div class="mono">Workspace: ${escapeHtml(data.defaults?.workspace || '-') }</div>
-                    </div>
-
-                    <div style="margin-bottom:12px;">
-                        <strong>Agents</strong>
-                        <ul class="mono">
-                            ${agents.map(a => `<li>${escapeHtml(a.id)} — ${escapeHtml(a.model || '-') } (${escapeHtml(a.workspace || '-')})</li>`).join('') || '<li>-</li>'}
-                        </ul>
-                    </div>
-
-                    <div style="margin-bottom:12px;">
-                        <strong>Bindings</strong>
-                        <ul class="mono">
-                            ${bindings.map(b => `<li>${escapeHtml(b.agentId)} → ${escapeHtml(b.channel)} (${escapeHtml(JSON.stringify(b.peer || {}))})</li>`).join('') || '<li>-</li>'}
-                        </ul>
-                    </div>
-
-                    <div>
-                        <strong>Channels</strong>
-                        <ul class="mono">
-                            ${channels.map(c => `<li>${escapeHtml(c.channel)} — enabled=${c.enabled} groupPolicy=${escapeHtml(c.groupPolicy || '-')} dmPolicy=${escapeHtml(c.dmPolicy || '-')}</li>`).join('') || '<li>-</li>'}
-                        </ul>
-                    </div>
-                `;
+                const text = await res.text();
+                let pretty = text;
+                try {
+                    pretty = JSON.stringify(JSON.parse(text), null, 2);
+                } catch (_) {}
+                configRawEl.textContent = pretty;
+                configMetaEl.textContent = 'RAW JSON · ' + (pretty.split('\n').length) + ' LINES';
             } catch (e) {
-                openclawPanel.innerHTML = '<div class="muted">Failed to load OpenClaw config.</div>';
+                configRawEl.textContent = `[ERROR] ${e.message}`;
             }
         }
 
-        async function loadSessions() {
+        window.reloadConfig = () => loadConfigRaw();
+        window.copyConfig = async () => {
             try {
-                const res = await fetch('/api/sessions');
-                if (!res.ok) throw new Error('Failed to load');
-                const data = await res.json();
-                const list = data.sessions || [];
-
-                sessionsPanel.innerHTML = `
-                    <h3 style="margin-bottom:6px;">Sessions (read-only)</h3>
-                    <div class="muted mono" style="margin-bottom:8px;">count: ${list.length}</div>
-                    <ul class="mono">
-                        ${list.map(s => `<li>${escapeHtml(s.key || '-') } — ${escapeHtml(s.channel || '-') } — ${escapeHtml(s.displayName || '-') } — ${escapeHtml(s.model || '-') }</li>`).join('') || '<li>-</li>'}
-                    </ul>
-                `;
+                await navigator.clipboard.writeText(configRawEl.textContent || '');
+                configMetaEl.textContent = 'COPIED';
+                setTimeout(() => { configMetaEl.textContent = 'RAW JSON'; }, 1200);
             } catch (e) {
-                sessionsPanel.innerHTML = '<div class="muted">Failed to load sessions.</div>';
+                alert('COPY FAILED: ' + e.message);
             }
-        }
+        };
 
-        function connectSSE() {
-            const es = new EventSource('/api/events');
+        // --- SSE ---
+        const es = new EventSource('/api/events');
+        es.onopen = () => {
+            connDot.classList.add('active');
+            connDot.classList.remove('error');
+            connText.textContent = "CONNECTED";
+            connText.style.color = "var(--c-success)";
+        };
+        es.onerror = () => {
+            connDot.classList.remove('active');
+            connDot.classList.add('error');
+            connText.textContent = "SIGNAL LOST";
+            connText.style.color = "var(--c-danger)";
+        };
+        es.addEventListener('init', e => {
+            const list = JSON.parse(e.data);
+            agents.clear();
+            list.forEach(a => agents.set(a.id, a));
+            renderTable();
+        });
+        es.addEventListener('update', e => {
+            const a = JSON.parse(e.data);
+            agents.set(a.id, a);
+            renderTable();
+            if (selectedAgentId === a.id) renderDetail();
+        });
+        es.addEventListener('remove', e => {
+            const {id} = JSON.parse(e.data);
+            agents.delete(id);
+            if (selectedAgentId === id) { selectedAgentId = null; renderDetail(); }
+            renderTable();
+        });
 
-            es.onopen = () => {
-                statusEl.textContent = '🟢 Connected';
-                statusEl.style.color = 'var(--success)';
-            };
-
-            es.onerror = () => {
-                statusEl.textContent = '🔴 Disconnected';
-                statusEl.style.color = 'var(--danger)';
-            };
-
-            es.addEventListener('init', e => {
-                const list = JSON.parse(e.data);
-                agents.clear();
-                list.forEach(a => agents.set(a.id, a));
-                renderTable();
-                renderDetail();
-            });
-
-            es.addEventListener('update', e => {
-                const agent = JSON.parse(e.data);
-                agents.set(agent.id, agent);
-                renderTable();
-                if (selectedAgentId === agent.id) renderDetail();
-            });
-
-            es.addEventListener('remove', e => {
-                const { id } = JSON.parse(e.data);
-                agents.delete(id);
-                if (selectedAgentId === id) selectedAgentId = null;
-                renderTable();
-                renderDetail();
-            });
-        }
-
-        renderColumnPanel();
-        renderTable();
-        loadOpenclawSummary();
-        loadSessions();
-        connectSSE();
+        loadSysInfo();
+        loadConfigRaw();
     </script>
 </body>
-
 </html>

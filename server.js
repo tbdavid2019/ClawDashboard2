@@ -708,6 +708,19 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // 6. OpenClaw Config (raw)
+    if (pathname === '/api/openclaw/raw') {
+        try {
+            const raw = await fs.readFile(OPENCLAW_CONFIG_PATH, 'utf8');
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.end(raw);
+        } catch (e) {
+            res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.end('openclaw.json not found');
+        }
+        return;
+    }
+
     // 6. OpenClaw Config Summary
     if (pathname === '/api/openclaw') {
         const config = await loadOpenclawConfig();
