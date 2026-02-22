@@ -822,8 +822,13 @@
                 document.getElementById('openclaw-panel').innerHTML = `
                     <label>OpenClaw Config</label>
                     <div class="mono-val">${escapeHtml(claw.path || 'Unknown')}</div>
-                    <div style="margin-top:5px; font-size:12px; color:var(--c-text-dim)">
+                    <div style="margin-top:6px; font-size:14px; color:var(--c-text-dim)">
                         Agents: ${(claw.agents || []).length} | Channels: ${(claw.channels || []).length} | Bindings: ${(claw.bindings || []).length}
+                    </div>
+                    <div style="margin-top:8px; font-size:13px; color:var(--c-text-dim)">
+                        <div><strong>Agents</strong>: ${(claw.agents || []).map(a => escapeHtml(a.id)).join(', ') || '-'}</div>
+                        <div><strong>Channels</strong>: ${(claw.channels || []).map(c => escapeHtml(c.channel)).join(', ') || '-'}</div>
+                        <div><strong>Bindings</strong>: ${(claw.bindings || []).map(b => escapeHtml(`${b.agentId}→${b.channel}`)).join(', ') || '-'}</div>
                     </div>
                 `;
                 
