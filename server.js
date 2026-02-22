@@ -8,6 +8,8 @@ const url = require('url');
 // Configuration
 const WORKSPACE = process.env.WORKSPACE_ROOT || path.resolve(__dirname, '..');
 const PORT = process.env.PORT || 3002;
+const RESCAN_INTERVAL_MS = Number(process.env.RESCAN_INTERVAL_MS) || 5 * 60 * 1000; // 5 min
+const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS) || 60 * 1000; // 1 min
 const IGNORED_PATHS = [
     /(^|[\/\\])\../,       // dotfiles
     /node_modules/,        // node_modules
@@ -86,27 +88,35 @@ async function parseProjectMd(filePath) {
         }
 
         // Extract Agent Name Priority:
-        // 1. MEMORY.md (**Name:** ...)
-        // 2. IDENTITY.md (**Name:** ...)
+        // 1. MEMORY.md (**Name:** / **Name**: / Name: ...)
+        // 2. IDENTITY.md (**Name:** / **Name**: / Name: ...)
         // 3. PROJECT.md (# Title)
         // 4. Directory Name
 
         let name = null;
 
+        const extractName = (text) => {
+            if (!text) return null;
+            const patterns = [
+                /\*\*(?:Name|暱稱|姓名):\*\*\s*(.+)/i,           // **Name:** xxx
+                /\*\*(?:Name|暱稱|姓名)\*\*\s*[:：]\s*(.+)/i,    // **Name**: xxx
+                /^(?:Name|暱稱|姓名)\s*[:：]\s*(.+)$/im          // Name: xxx
+            ];
+            for (const re of patterns) {
+                const m = text.match(re);
+                if (m) return m[1].trim();
+            }
+            return null;
+        };
+
         // Check MEMORY.md
         if (memory) {
-            const memoryNameMatch = memory.match(/\*\*(?:Name|暱稱|姓名):\*\*\s*(.+)/i);
-            if (memoryNameMatch) {
-                name = memoryNameMatch[1].trim();
-            }
+            name = extractName(memory) || name;
         }
 
         // Check IDENTITY.md if no name yet
         if (!name && identity) {
-            const identityNameMatch = identity.match(/\*\*(?:Name|暱稱|姓名):\*\*\s*(.+)/i);
-            if (identityNameMatch) {
-                name = identityNameMatch[1].trim();
-            }
+            name = extractName(identity) || name;
         }
 
         // Check PROJECT.md H1 if no name yet
@@ -122,27 +132,16 @@ async function parseProjectMd(filePath) {
             name = path.basename(directory);
         }
 
-        // Split by H2 sections
-        const sections = {};
-        let currentSection = null;
-
-        content.split('\n').forEach(line => {
-            const sectionMatch = line.match(/^##\s+(.+)$/);
-            if (sectionMatch) {
-                currentSection = sectionMatch[1].trim();
-                sections[currentSection] = [];
-            } else if (currentSection && line.trim() !== '') {
-                sections[currentSection].push(line);
-            }
-        });
+        // Extract sections flexibly (support headings like # Status, ## Status, or inline "Status:" lines)
+        const sections = extractSections(content);
 
         return {
             id: directory, // Use directory path as unique ID
             name,
-            status: parseStatus(sections['Status']),
-            tasks: parseTasks(sections['Tasks']),
-            log: parseLog(sections['Log']),
-            todayLogCount: countTodayLogs(sections['Log']),
+            status: parseStatus(sections['status'], content),
+            tasks: parseTasks(sections['tasks']),
+            log: parseLog(sections['log']),
+            todayLogCount: countTodayLogs(sections['log']),
             memory,
             docs, // List of other markdown files
             lastUpdated: mtime.getTime(),
@@ -154,8 +153,60 @@ async function parseProjectMd(filePath) {
     }
 }
 
-function parseStatus(lines) {
-    if (!lines || lines.length === 0) return { r: '🟢', text: 'idle' }; // Default
+function normalizeSectionName(name) {
+    return name.toLowerCase().replace(/[:\s]+$/, '').trim();
+}
+
+function splitSectionHeading(text) {
+    const match = text.match(/^(.*?)(?:\s*[:\-—]\s*)(.+)$/);
+    if (match) {
+        return { name: match[1].trim(), inline: match[2].trim() };
+    }
+    return { name: text.trim(), inline: null };
+}
+
+function extractSections(content) {
+    const sections = {};
+    let currentSection = null;
+
+    const lines = content.split('\n');
+    for (const line of lines) {
+        // Markdown headings (#, ##, ###, ...)
+        const headingMatch = line.match(/^\s{0,3}#{1,6}\s*(.+?)\s*$/);
+        if (headingMatch) {
+            const { name, inline } = splitSectionHeading(headingMatch[1]);
+            const sectionKey = normalizeSectionName(name);
+            currentSection = sectionKey;
+            if (!sections[sectionKey]) sections[sectionKey] = [];
+            if (inline) sections[sectionKey].push(inline);
+            continue;
+        }
+
+        // Inline section marker: "Status:", "Tasks -", "Log —"
+        const inlineMatch = line.match(/^\s*(Status|Tasks|Log)\s*(?:[:\-—]\s*(.*))?$/i);
+        if (inlineMatch) {
+            const sectionKey = normalizeSectionName(inlineMatch[1]);
+            currentSection = sectionKey;
+            if (!sections[sectionKey]) sections[sectionKey] = [];
+            if (inlineMatch[2] && inlineMatch[2].trim()) {
+                sections[sectionKey].push(inlineMatch[2].trim());
+            }
+            continue;
+        }
+
+        if (currentSection && line.trim() !== '') {
+            sections[currentSection].push(line);
+        }
+    }
+
+    return sections;
+}
+
+function parseStatus(lines, rawContent) {
+    if (!lines || lines.length === 0) {
+        console.warn('Status parse: missing Status section. Raw content snippet:', (rawContent || '').slice(0, 500));
+        return { r: '🟢', text: 'idle' }; // Default
+    }
 
     // Find first line with emoji or text
     for (const line of lines) {
@@ -175,6 +226,8 @@ function parseStatus(lines) {
             return { r: '🟢', text: line.trim() };
         }
     }
+
+    console.warn('Status parse: unable to extract status from lines:', lines);
     return { r: '🟢', text: 'idle' };
 }
 
@@ -182,8 +235,8 @@ function parseTasks(lines) {
     if (!lines) return [];
     const tasks = [];
 
-    // - [ ] Task name
-    const regex = /-\s+\[([ x\/!~])\]\s*(.*)/;
+    // Support: - [ ], * [ ], + [ ], or bare [ ]
+    const regex = /^\s*(?:[-*+]\s*)?\[([ xX\/!~])\]\s*(.*)/;
 
     lines.forEach(line => {
         const match = line.match(regex);
@@ -192,7 +245,8 @@ function parseTasks(lines) {
             switch (match[1]) {
                 case ' ': status = 'todo'; break;
                 case '/': status = 'in-progress'; break;
-                case 'x': status = 'done'; break;
+                case 'x':
+                case 'X': status = 'done'; break;
                 case '!': status = 'blocked'; break;
                 case '~': status = 'cancelled'; break;
             }
@@ -358,6 +412,44 @@ async function scanWorkspace(dir) {
 
 // Trigger initial scan
 scanWorkspace(WORKSPACE);
+
+// Periodic refresh (fallback in case watcher misses events)
+let refreshInProgress = false;
+async function refreshAllAgents() {
+    if (refreshInProgress) return;
+    refreshInProgress = true;
+    try {
+        for (const id of agents.keys()) {
+            const targetProjectMd = path.join(id, 'PROJECT.md');
+            try {
+                await fs.access(targetProjectMd);
+                const agent = await parseProjectMd(targetProjectMd);
+                if (agent) {
+                    agents.set(agent.id, agent);
+                    broadcast('update', agent);
+                }
+            } catch (e) {
+                // ignore missing/permission issues
+            }
+        }
+    } finally {
+        refreshInProgress = false;
+    }
+}
+
+let rescanInProgress = false;
+async function rescanWorkspace() {
+    if (rescanInProgress) return;
+    rescanInProgress = true;
+    try {
+        await scanWorkspace(WORKSPACE);
+    } finally {
+        rescanInProgress = false;
+    }
+}
+
+setInterval(refreshAllAgents, REFRESH_INTERVAL_MS).unref();
+setInterval(rescanWorkspace, RESCAN_INTERVAL_MS).unref();
 
 
 // ---- 3. SSE & HTTP Server ----

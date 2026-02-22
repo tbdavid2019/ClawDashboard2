@@ -345,6 +345,7 @@
         let agents = new Map();
         let selectedAgentId = null;
         let logExpanded = false;
+        let showCompletedTasks = false;
 
         // Elements
         const listEl = document.getElementById('agent-list');
@@ -365,8 +366,22 @@
         function renderSidebar() {
             listEl.innerHTML = '';
 
-            // Sort agents by lastUpdated (newest first)
-            const sorted = Array.from(agents.values()).sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
+            // Sort agents by status priority, then activity, then lastUpdated
+            const statusRank = (agent) => {
+                const r = agent?.status?.r || '🟢';
+                // Higher priority first (lower rank)
+                const order = { '🔴': 0, '🟠': 1, '🟡': 2, '🔵': 3, '🟢': 4 };
+                return (r in order) ? order[r] : 5;
+            };
+            const sorted = Array.from(agents.values()).sort((a, b) => {
+                const ra = statusRank(a);
+                const rb = statusRank(b);
+                if (ra !== rb) return ra - rb;
+                const la = a.todayLogCount || 0;
+                const lb = b.todayLogCount || 0;
+                if (la !== lb) return lb - la;
+                return (b.lastUpdated || 0) - (a.lastUpdated || 0);
+            });
 
             sorted.forEach(agent => {
                 const item = document.createElement('div');
@@ -418,7 +433,10 @@
             const text = agent.status?.text || 'idle';
 
             let tasksHtml = '<ul class="task-list">';
-            (agent.tasks || []).forEach(task => {
+            const allTasks = (agent.tasks || []);
+            const visibleTasks = showCompletedTasks ? allTasks : allTasks.filter(t => t.status !== 'done' && t.status !== 'cancelled');
+
+            visibleTasks.forEach(task => {
                 let icon = '[ ]';
                 let cls = 'status-todo';
                 if (task.status === 'done') { icon = '[x]'; cls = 'status-done'; }
@@ -500,7 +518,15 @@
                 <div style="font-size: 0.8em; color: #666; margin-bottom: 1rem;">ID: ${agent.id}</div>
                 
                 <div class="card">
-                    <h3>Tasks</h3>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                        <h3>Tasks</h3>
+                        <button class="log-toggle-btn" onclick="toggleTaskView()">
+                            ${showCompletedTasks ? 'Hide completed' : 'Show completed'}
+                        </button>
+                    </div>
+                    <div style="font-size:0.85em; color:#666; margin-bottom:6px;">
+                        ${allTasks.length} total · ${allTasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length} active
+                    </div>
                     ${(agent.tasks && agent.tasks.length) ? tasksHtml : '<p style="color:#666">No tasks found.</p>'}
                 </div>
 
@@ -539,6 +565,11 @@
 
         window.toggleLogView = function() {
             logExpanded = !logExpanded;
+            renderDetail();
+        };
+
+        window.toggleTaskView = function() {
+            showCompletedTasks = !showCompletedTasks;
             renderDetail();
         };
 
