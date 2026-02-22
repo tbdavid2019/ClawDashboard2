@@ -722,8 +722,9 @@ const server = http.createServer(async (req, res) => {
         try {
             const config = await loadOpenclawConfig();
             const result = await invokeGatewayTool(config, 'sessions_list', { limit: 50, messageLimit: 0 });
+            const sessions = result?.details?.sessions || result?.sessions || [];
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            res.end(JSON.stringify(result || {}));
+            res.end(JSON.stringify({ sessions, count: sessions.length }));
         } catch (e) {
             res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ error: e.message }));

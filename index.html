@@ -634,7 +634,7 @@
                     <h3 style="margin-bottom:6px;">Sessions (read-only)</h3>
                     <div class="muted mono" style="margin-bottom:8px;">count: ${list.length}</div>
                     <ul class="mono">
-                        ${list.map(s => `<li>${escapeHtml(s.sessionKey || s.key || '-') } — ${escapeHtml(s.agentId || '-') } — ${escapeHtml(s.label || '-') }</li>`).join('') || '<li>-</li>'}
+                        ${list.map(s => `<li>${escapeHtml(s.key || '-') } — ${escapeHtml(s.channel || '-') } — ${escapeHtml(s.displayName || '-') } — ${escapeHtml(s.model || '-') }</li>`).join('') || '<li>-</li>'}
                     </ul>
                 `;
             } catch (e) {
