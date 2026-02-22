@@ -64,6 +64,9 @@
             flex-wrap: wrap;
         }
 
+        .panel { overflow-x: auto; }
+        ul.mono, .mono { word-break: break-all; }
+
         .controls label { color: var(--text-secondary); font-size: 0.85rem; margin-right: 6px; }
         select, button, input[type="checkbox"] {
             background: #0b1220;
@@ -157,6 +160,11 @@
                 font-size: 0.75rem;
                 margin-bottom: 2px;
             }
+            .controls { flex-direction: column; align-items: stretch; }
+            .controls > div { width: 100%; }
+            select, button { width: 100%; }
+            .panel { padding: 10px; }
+            .logo { font-size: 1rem; }
         }
     </style>
 </head>
