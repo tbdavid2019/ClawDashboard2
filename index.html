@@ -537,6 +537,7 @@
             if (!editor) return;
             try {
                 await saveDoc(agentId, filename, editor.value);
+                await refreshAgents();
                 alert('Saved');
             } catch (e) {
                 alert('Save failed: ' + e.message);
@@ -550,11 +551,25 @@
             const identity = `# Identity\n\n- **Name**: ${name}\n`;
             try {
                 await saveDoc(agentId, 'IDENTITY.md', identity);
+                await refreshAgents();
                 alert('Saved');
             } catch (e) {
                 alert('Save failed: ' + e.message);
             }
         };
+
+        async function refreshAgents() {
+            try {
+                const res = await fetch('/api/agents');
+                if (res.ok) {
+                    const list = await res.json();
+                    agents.clear();
+                    list.forEach(a => agents.set(a.id, a));
+                    renderTable();
+                    renderDetail();
+                }
+            } catch {}
+        }
 
         function connectSSE() {
             const es = new EventSource('/api/events');
