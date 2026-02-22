@@ -213,6 +213,10 @@
             </table>
         </div>
 
+        <div class="panel" id="openclaw-panel">
+            <div class="muted">Loading OpenClaw config...</div>
+        </div>
+
         <div class="panel detail" id="detail-panel">
             <div class="muted">Select an agent to view details.</div>
         </div>
@@ -269,6 +273,7 @@
         const columnPanel = document.getElementById('column-panel');
         const tableHead = document.getElementById('table-head');
         const tableBody = document.getElementById('table-body');
+        const openclawPanel = document.getElementById('openclaw-panel');
         const detailPanel = document.getElementById('detail-panel');
 
         sortKeyEl.value = settings.sortKey;
@@ -559,6 +564,52 @@
             } catch {}
         }
 
+        async function loadOpenclawSummary() {
+            try {
+                const res = await fetch('/api/openclaw');
+                if (!res.ok) throw new Error('Failed to load');
+                const data = await res.json();
+
+                const agents = data.agents || [];
+                const bindings = data.bindings || [];
+                const channels = data.channels || [];
+
+                openclawPanel.innerHTML = `
+                    <h3 style="margin-bottom:6px;">OpenClaw Config (read-only)</h3>
+                    <div class="muted mono" style="margin-bottom:8px;">${escapeHtml(data.path || '')}</div>
+
+                    <div style="margin-bottom:12px;">
+                        <strong>Defaults</strong>
+                        <div class="mono">Model: ${escapeHtml(data.defaults?.model || '-') }</div>
+                        <div class="mono">Workspace: ${escapeHtml(data.defaults?.workspace || '-') }</div>
+                    </div>
+
+                    <div style="margin-bottom:12px;">
+                        <strong>Agents</strong>
+                        <ul class="mono">
+                            ${agents.map(a => `<li>${escapeHtml(a.id)} — ${escapeHtml(a.model || '-') } (${escapeHtml(a.workspace || '-')})</li>`).join('') || '<li>-</li>'}
+                        </ul>
+                    </div>
+
+                    <div style="margin-bottom:12px;">
+                        <strong>Bindings</strong>
+                        <ul class="mono">
+                            ${bindings.map(b => `<li>${escapeHtml(b.agentId)} → ${escapeHtml(b.channel)} (${escapeHtml(JSON.stringify(b.peer || {}))})</li>`).join('') || '<li>-</li>'}
+                        </ul>
+                    </div>
+
+                    <div>
+                        <strong>Channels</strong>
+                        <ul class="mono">
+                            ${channels.map(c => `<li>${escapeHtml(c.channel)} — enabled=${c.enabled} groupPolicy=${escapeHtml(c.groupPolicy || '-')} dmPolicy=${escapeHtml(c.dmPolicy || '-')}</li>`).join('') || '<li>-</li>'}
+                        </ul>
+                    </div>
+                `;
+            } catch (e) {
+                openclawPanel.innerHTML = '<div class="muted">Failed to load OpenClaw config.</div>';
+            }
+        }
+
         function connectSSE() {
             const es = new EventSource('/api/events');
 
@@ -598,6 +649,7 @@
 
         renderColumnPanel();
         renderTable();
+        loadOpenclawSummary();
         connectSSE();
     </script>
 </body>

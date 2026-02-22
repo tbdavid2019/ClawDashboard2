@@ -62,6 +62,50 @@ async function loadOpenclawConfig() {
     return null;
 }
 
+function summarizeOpenclawConfig(config) {
+    if (!config) return null;
+
+    const agentsList = Array.isArray(config.agents?.list)
+        ? config.agents.list.map(a => ({
+            id: a.id,
+            name: a.name,
+            workspace: a.workspace,
+            model: a.model
+        }))
+        : [];
+
+    const defaults = {
+        model: config.agents?.defaults?.model?.primary || config.agents?.defaults?.model || config.model?.primary || config.model || null,
+        workspace: config.agents?.defaults?.workspace || null
+    };
+
+    const bindings = Array.isArray(config.bindings)
+        ? config.bindings.map(b => ({
+            agentId: b.agentId,
+            channel: b.match?.channel,
+            peer: b.match?.peer
+        }))
+        : [];
+
+    const channels = config.channels
+        ? Object.entries(config.channels).map(([key, val]) => ({
+            channel: key,
+            enabled: !!val.enabled,
+            groupPolicy: val.groupPolicy,
+            dmPolicy: val.dmPolicy
+        }))
+        : [];
+
+    return {
+        path: OPENCLAW_CONFIG_PATH,
+        meta: config.meta || null,
+        defaults,
+        agents: agentsList,
+        bindings,
+        channels
+    };
+}
+
 function extractDefaultModelFromConfig(config, agentDir) {
     if (!config) return null;
 
@@ -636,7 +680,16 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // 6. Static Files
+    // 6. OpenClaw Config Summary
+    if (pathname === '/api/openclaw') {
+        const config = await loadOpenclawConfig();
+        const summary = summarizeOpenclawConfig(config);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(summary || {}));
+        return;
+    }
+
+    // 7. Static Files
     if (pathname === '/' || pathname === '/index.html') {
         try {
             const content = await fs.readFile(path.join(__dirname, 'index.html'), 'utf8');
