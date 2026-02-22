@@ -120,7 +120,9 @@ function summarizeOpenclawConfig(config) {
             channel: key,
             enabled: !!val.enabled,
             groupPolicy: val.groupPolicy,
-            dmPolicy: val.dmPolicy
+            dmPolicy: val.dmPolicy,
+            groupIds: val.groups ? Object.keys(val.groups) : [],
+            dmIds: val.dms ? Object.keys(val.dms) : []
         }))
         : [];
 

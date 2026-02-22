@@ -827,8 +827,13 @@
                     </div>
                     <div style="margin-top:8px; font-size:13px; color:var(--c-text-dim)">
                         <div><strong>Agents</strong>: ${(claw.agents || []).map(a => escapeHtml(a.id)).join(', ') || '-'}</div>
-                        <div><strong>Channels</strong>: ${(claw.channels || []).map(c => escapeHtml(c.channel)).join(', ') || '-'}</div>
-                        <div><strong>Bindings</strong>: ${(claw.bindings || []).map(b => escapeHtml(`${b.agentId}→${b.channel}`)).join(', ') || '-'}</div>
+                        <div><strong>Channels</strong>: ${(claw.channels || []).map(c => {
+                            const groups = (c.groupIds || []).join('|');
+                            const dms = (c.dmIds || []).join('|');
+                            const ids = [groups && `groups:${groups}`, dms && `dms:${dms}`].filter(Boolean).join(' ');
+                            return escapeHtml(`${c.channel} ${ids}`.trim());
+                        }).join(', ') || '-'}</div>
+                        <div><strong>Bindings</strong>: ${(claw.bindings || []).map(b => escapeHtml(`${b.agentId}→${b.channel}:${b.peer?.id ?? ''}`)).join(', ') || '-'}</div>
                     </div>
                 `;
                 
