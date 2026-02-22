@@ -23,6 +23,20 @@
 
 ---
 
+## Agent Naming (IDENTITY.md)
+
+請在 workspace 根目錄建立 `IDENTITY.md`，並用以下格式（**必須一致**）：
+
+```markdown
+# Identity
+
+- **Name**: Your Agent Name
+- **Role**: ...
+- **Emoji**: ...
+```
+
+Dashboard 會讀 `IDENTITY.md`（或 `MEMORY.md`）作為顯示名稱。
+
 ## 你的唯一職責
 
 在你的 workspace 根目錄維護一個 `PROJECT.md`：
@@ -141,8 +155,15 @@
 
 ### 格式
 
+推薦：
 ```
 - YYYY-MM-DD HH:MM 做了什麼事
+```
+
+相容（Dashboard 仍可計數/顯示）：
+```
+[YYYY-MM-DD] 做了什麼事
+- [YYYY-MM-DD] 做了什麼事
 ```
 
 ### 寫什麼

@@ -162,7 +162,11 @@ Dashboard 用第一個 emoji 決定顏色，`—` 後面的文字顯示在狀態
 - 2024-01-16 14:00 發現 Edge TTS 延遲過高，改用 Coqui
 ```
 
-**格式**：`- YYYY-MM-DD HH:MM 描述`
+**格式**（推薦）: `- YYYY-MM-DD HH:MM 描述`
+
+**相容格式**（仍可被 Dashboard 計數/顯示）:
+- `[YYYY-MM-DD] 描述`
+- `- [YYYY-MM-DD] 描述`
 
 **清理**：保留最近 7 天，更舊的移到 `ARCHIVE.md`。
 

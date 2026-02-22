@@ -79,15 +79,26 @@ Resolution order:
 
 ---
 
-## 🏷️ Agent Naming Protocol
+## 🏷️ Agent Naming Protocol (IDENTITY.md / MEMORY.md)
 
-To ensuring the dashboard displays the correct agent name, `MEMORY.md` (or `IDENTITY.md`) must include one of these fields:
+To ensure the dashboard displays the correct agent name, **IDENTITY.md** (or `MEMORY.md`) must include one of these fields:
 
--   `**Name:** [English Name]`
--   `**暱稱:** [Nickname]`
--   `**姓名:** [Name]`
+- `**Name:** [English Name]`
+- `**Name**: [English Name]`
+- `Name: [English Name]`
+- `**暱稱:** [Nickname]`
+- `**姓名:** [Name]`
 
 **Priority Order:** `MEMORY.md` > `IDENTITY.md` > `PROJECT.md` Title > Directory Name.
+
+**Recommended (IDENTITY.md):**
+```markdown
+# Identity
+
+- **Name**: Your Agent Name
+- **Role**: ...
+- **Emoji**: ...
+```
 
 ---
 
