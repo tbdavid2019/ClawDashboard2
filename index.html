@@ -38,7 +38,7 @@
             background-color: var(--c-void);
             color: var(--c-text-main);
             font-family: var(--f-mono);
-            font-size: 13px;
+            font-size: 15px;
             overflow-x: hidden;
             background-image: 
                 linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
@@ -521,6 +521,15 @@
             </div>
         </div>
 
+        <!-- SYSTEM INFO -->
+        <div class="panel" id="system-panel">
+            <div class="panel-header">System Metrics</div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px;">
+                <div id="openclaw-panel">Loading Config...</div>
+                <div id="sessions-panel">Loading Sessions...</div>
+            </div>
+        </div>
+
         <!-- AGENT TABLE -->
         <div class="panel table-panel">
             <div class="panel-header">
@@ -535,21 +544,13 @@
             </div>
         </div>
 
-        <!-- SYSTEM INFO -->
-        <div class="panel" id="system-panel">
-            <div class="panel-header">System Metrics</div>
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px;">
-                <div id="openclaw-panel">Loading Config...</div>
-                <div id="sessions-panel">Loading Sessions...</div>
-            </div>
-        </div>
-
         <!-- OPENCLAW CONFIG VIEWER -->
         <div class="panel" id="config-panel">
             <div class="panel-header">
                 <span>OpenClaw Config Viewer</span>
                 <div class="config-toolbar">
                     <span class="meta" id="config-meta">RAW JSON</span>
+                    <button onclick="toggleRaw()">TOGGLE</button>
                     <button onclick="reloadConfig()">REFRESH</button>
                     <button onclick="copyConfig()">COPY</button>
                 </div>
@@ -821,8 +822,8 @@
                 document.getElementById('openclaw-panel').innerHTML = `
                     <label>OpenClaw Config</label>
                     <div class="mono-val">${escapeHtml(claw.path || 'Unknown')}</div>
-                    <div style="margin-top:5px; font-size:11px; color:var(--c-text-dim)">
-                        Agents: ${(claw.agents || []).length} | Channels: ${(claw.channels || []).length}
+                    <div style="margin-top:5px; font-size:12px; color:var(--c-text-dim)">
+                        Agents: ${(claw.agents || []).length} | Channels: ${(claw.channels || []).length} | Bindings: ${(claw.bindings || []).length}
                     </div>
                 `;
                 
@@ -839,17 +840,15 @@
 
         async function loadConfigRaw() {
             try {
-                const res = await fetch('/api/openclaw/raw');
+                const res = await fetch('/api/openclaw');
                 if (!res.ok) {
                     configRawEl.textContent = `[ERROR] ${res.status} ${res.statusText}`;
                     configMetaEl.textContent = 'RAW JSON';
                     return;
                 }
-                const text = await res.text();
-                let pretty = text;
-                try {
-                    pretty = JSON.stringify(JSON.parse(text), null, 2);
-                } catch (_) {}
+                const data = await res.json();
+                const raw = data.raw || {};
+                const pretty = JSON.stringify(raw, null, 2);
                 configRawEl.textContent = pretty;
                 configMetaEl.textContent = 'RAW JSON · ' + (pretty.split('\n').length) + ' LINES';
             } catch (e) {
@@ -858,6 +857,10 @@
         }
 
         window.reloadConfig = () => loadConfigRaw();
+        window.toggleRaw = () => {
+            const isHidden = configRawEl.style.display === 'none';
+            configRawEl.style.display = isHidden ? 'block' : 'none';
+        };
         window.copyConfig = async () => {
             try {
                 await navigator.clipboard.writeText(configRawEl.textContent || '');

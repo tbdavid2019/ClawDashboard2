@@ -726,7 +726,7 @@ const server = http.createServer(async (req, res) => {
         const config = await loadOpenclawConfig();
         const summary = summarizeOpenclawConfig(config);
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(summary || {}));
+        res.end(JSON.stringify({ ...(summary || {}), raw: config || {} }));
         return;
     }
 
