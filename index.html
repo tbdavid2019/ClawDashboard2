@@ -74,6 +74,15 @@
             font-size: 0.9rem;
         }
 
+        .doc-btn {
+            background: #0b1220;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.85rem;
+        }
+
         button { cursor: pointer; }
         button:hover { border-color: #334155; }
 
@@ -254,6 +263,7 @@
         let settings = loadSettings();
         let agents = new Map();
         let selectedAgentId = null;
+        let selectedDoc = null;
 
         const statusEl = document.getElementById('connection-status');
         const sortKeyEl = document.getElementById('sort-key');
@@ -413,7 +423,20 @@
 
         function selectAgent(id) {
             selectedAgentId = id;
+            selectedDoc = null;
             renderDetail();
+        }
+
+        async function loadDoc(agentId, filename) {
+            try {
+                const res = await fetch(`/api/file?id=${encodeURIComponent(agentId)}&file=${encodeURIComponent(filename)}`);
+                if (res.ok) {
+                    return await res.text();
+                }
+                return `Error loading file: ${res.statusText}`;
+            } catch (e) {
+                return `Error: ${e.message}`;
+            }
         }
 
         function renderDetail() {
@@ -429,7 +452,6 @@
 
             const tasksHtml = tasks.map(task => {
                 let icon = '[ ]';
-                let cls = 'status-todo';
                 if (task.status === 'done') { icon = '[x]'; }
                 if (task.status === 'in-progress') { icon = '[/]'; }
                 if (task.status === 'blocked') { icon = '[!]'; }
@@ -439,6 +461,12 @@
 
             const logs = agent.log || [];
             const logsHtml = logs.map(l => `<li class="mono">${escapeHtml(l)}</li>`).join('');
+
+            const docs = (agent.docs || []).sort();
+            const docsButtons = docs.map(doc => {
+                const active = selectedDoc === doc ? 'style="border-color:#60a5fa"' : '';
+                return `<button class="doc-btn" ${active} onclick="viewDoc('${agent.id}', '${doc}')">📄 ${doc}</button>`;
+            }).join('');
 
             detailPanel.innerHTML = `
                 <div>
@@ -459,8 +487,32 @@
                     <strong>MEMORY.md</strong>
                     ${agent.memory ? `<pre>${escapeHtml(agent.memory)}</pre>` : '<div class="muted">No memory found.</div>'}
                 </div>
+                <div>
+                    <strong>All Markdown (including daily notes)</strong>
+                    ${docs.length ? `
+                        <div style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0;">
+                            ${docsButtons}
+                        </div>
+                        <div id="doc-viewer" style="margin-top:8px;">
+                            <div class="muted">Select a document to preview.</div>
+                        </div>
+                    ` : '<div class="muted">No extra markdown files.</div>'}
+                </div>
             `;
         }
+
+        window.viewDoc = async function(agentId, filename) {
+            selectedDoc = filename;
+            const content = await loadDoc(agentId, filename);
+            const viewer = document.getElementById('doc-viewer');
+            if (viewer) {
+                viewer.innerHTML = `
+                    <div class="muted" style="margin-bottom:6px;">${filename}</div>
+                    <pre>${escapeHtml(content)}</pre>
+                `;
+            }
+            renderDetail();
+        };
 
         function connectSSE() {
             const es = new EventSource('/api/events');
