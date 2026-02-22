@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
+const os = require('os');
 const chokidar = require('chokidar');
 const url = require('url');
 
@@ -10,6 +11,7 @@ const WORKSPACE = process.env.WORKSPACE_ROOT || path.resolve(__dirname, '..');
 const PORT = process.env.PORT || 3002;
 const RESCAN_INTERVAL_MS = Number(process.env.RESCAN_INTERVAL_MS) || 5 * 60 * 1000; // 5 min
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS) || 60 * 1000; // 1 min
+const OPENCLAW_CONFIG_PATH = process.env.OPENCLAW_CONFIG_PATH || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const IGNORED_PATHS = [
     /(^|[\/\\])\../,       // dotfiles
     /node_modules/,        // node_modules
@@ -48,6 +50,36 @@ const clients = new Set();
 const updateQueue = new Map();
 
 // ---- 1. Markdown Parser (Async) ----
+async function loadOpenclawConfig() {
+    try {
+        if (fsSync.existsSync(OPENCLAW_CONFIG_PATH)) {
+            const raw = await fs.readFile(OPENCLAW_CONFIG_PATH, 'utf8');
+            return JSON.parse(raw);
+        }
+    } catch (e) {
+        console.warn('Failed to read openclaw.json:', e.message);
+    }
+    return null;
+}
+
+function extractDefaultModelFromConfig(config, agentDir) {
+    if (!config) return null;
+    const agentKey = path.basename(agentDir);
+
+    const agentCfg = config.agents?.[agentKey] || null;
+    const defaultsCfg = config.agents?.defaults || null;
+
+    return (
+        agentCfg?.model?.primary ||
+        agentCfg?.model ||
+        defaultsCfg?.model?.primary ||
+        defaultsCfg?.model ||
+        config.model?.primary ||
+        config.model ||
+        null
+    );
+}
+
 async function parseProjectMd(filePath) {
     try {
         // Use async file reading to prevent blocking the event loop
@@ -151,7 +183,13 @@ async function parseProjectMd(filePath) {
         // Extract sections flexibly (support headings like # Status, ## Status, or inline "Status:" lines)
         const sections = extractSections(content);
 
-        const defaultModel = metrics.defaultModel || metrics.model || metrics.default_model || null;
+        const openclawConfig = await loadOpenclawConfig();
+        const defaultModel =
+            extractDefaultModelFromConfig(openclawConfig, directory) ||
+            metrics.defaultModel ||
+            metrics.model ||
+            metrics.default_model ||
+            null;
         const todayTokens = metrics.todayTokens ?? metrics.tokens ?? metrics.today_tokens ?? null;
         const todayCalls = metrics.todayCalls ?? metrics.calls ?? metrics.today_calls ?? null;
 

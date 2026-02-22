@@ -60,6 +60,25 @@ When you receive the prompt above:
    ```
 ---
 
+## 🧠 Default Model Source
+
+The **Default Model** column reads from the local OpenClaw config:
+
+- Default path: `~/.openclaw/openclaw.json`
+- Override via env: `OPENCLAW_CONFIG_PATH=/path/to/openclaw.json`
+
+Resolution order:
+1. `agents.<agentFolder>.model.primary`
+2. `agents.<agentFolder>.model`
+3. `agents.defaults.model.primary`
+4. `agents.defaults.model`
+5. `model.primary`
+6. `model`
+
+> Note: `<agentFolder>` is the agent workspace folder name (e.g., `clawd-code`).
+
+---
+
 ## 🏷️ Agent Naming Protocol
 
 To ensuring the dashboard displays the correct agent name, `MEMORY.md` (or `IDENTITY.md`) must include one of these fields:
