@@ -31,6 +31,25 @@
             --ease-tech: cubic-bezier(0.23, 1, 0.32, 1);
         }
 
+        :root[data-theme="light"] {
+            --c-void: #f4f6f8;
+            --c-surface: #ffffff;
+            --c-surface-elev: #f0f3f7;
+            --c-border: #d6dbe1;
+            --c-border-active: #a8b2bf;
+
+            --c-text-main: #1f2937;
+            --c-text-dim: #6b7280;
+            --c-text-ghost: #9ca3af;
+
+            --c-accent: #2563eb;
+            --c-accent-dim: rgba(37, 99, 235, 0.12);
+            --c-secondary: #0ea5e9;
+            --c-danger: #dc2626;
+            --c-warn: #d97706;
+            --c-success: #059669;
+        }
+
         * { box-sizing: border-box; outline: none; }
         
         body {
@@ -126,6 +145,18 @@
             gap: 8px;
             background: var(--c-surface);
         }
+
+        .theme-toggle {
+            background: var(--c-surface-elev);
+            color: var(--c-text-main);
+            border: 1px solid var(--c-border);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .theme-toggle:hover { border-color: var(--c-border-active); }
 
         .status-dot {
             width: 8px;
@@ -479,9 +510,12 @@
                 <div class="brand-sub">Protocol 7 // Signal Intercept</div>
             </div>
         </div>
-        <div class="status-indicator">
-            <div class="status-dot" id="conn-dot"></div>
-            <span id="conn-text">OFFLINE</span>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="theme-toggle" id="theme-toggle">THEME: DARK</button>
+            <div class="status-indicator">
+                <div class="status-dot" id="conn-dot"></div>
+                <span id="conn-text">OFFLINE</span>
+            </div>
         </div>
     </header>
 
@@ -593,6 +627,23 @@
         let selectedAgentId = null;
         let selectedDoc = null;
 
+        // Theme
+        const themeKey = 'clawDashboardTheme';
+        const themeToggle = document.getElementById('theme-toggle');
+        const applyTheme = (t) => {
+            document.documentElement.setAttribute('data-theme', t);
+            themeToggle.textContent = `THEME: ${t.toUpperCase()}`;
+            localStorage.setItem(themeKey, t);
+        };
+        const initTheme = () => {
+            const saved = localStorage.getItem(themeKey) || 'dark';
+            applyTheme(saved);
+        };
+        themeToggle.onclick = () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+        };
+
         // Elements
         const connDot = document.getElementById('conn-dot');
         const connText = document.getElementById('conn-text');
@@ -607,6 +658,7 @@
         const configMetaEl = document.getElementById('config-meta');
 
         // Init UI
+        initTheme();
         sortKeyEl.value = settings.sortKey;
         sortDirEl.value = settings.sortDir;
         colorModeEl.value = settings.colorMode;
