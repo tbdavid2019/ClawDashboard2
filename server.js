@@ -62,6 +62,34 @@ async function loadOpenclawConfig() {
     return null;
 }
 
+function getGatewayConfig(config) {
+    return {
+        port: config?.gateway?.port || 18789,
+        token: config?.gateway?.auth?.token || null
+    };
+}
+
+async function invokeGatewayTool(config, tool, args = {}) {
+    const gw = getGatewayConfig(config);
+    if (!gw.token) throw new Error('Missing gateway token');
+
+    const url = `http://127.0.0.1:${gw.port}/tools/invoke`;
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${gw.token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ tool, args })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+        throw new Error(data?.error?.message || 'Gateway tool invoke failed');
+    }
+    return data.result;
+}
+
 function summarizeOpenclawConfig(config) {
     if (!config) return null;
 
@@ -686,6 +714,20 @@ const server = http.createServer(async (req, res) => {
         const summary = summarizeOpenclawConfig(config);
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(summary || {}));
+        return;
+    }
+
+    // 6b. Sessions List
+    if (pathname === '/api/sessions') {
+        try {
+            const config = await loadOpenclawConfig();
+            const result = await invokeGatewayTool(config, 'sessions_list', { limit: 50, messageLimit: 0 });
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify(result || {}));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
         return;
     }
 

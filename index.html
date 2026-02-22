@@ -217,6 +217,10 @@
             <div class="muted">Loading OpenClaw config...</div>
         </div>
 
+        <div class="panel" id="sessions-panel">
+            <div class="muted">Loading sessions...</div>
+        </div>
+
         <div class="panel detail" id="detail-panel">
             <div class="muted">Select an agent to view details.</div>
         </div>
@@ -274,6 +278,7 @@
         const tableHead = document.getElementById('table-head');
         const tableBody = document.getElementById('table-body');
         const openclawPanel = document.getElementById('openclaw-panel');
+        const sessionsPanel = document.getElementById('sessions-panel');
         const detailPanel = document.getElementById('detail-panel');
 
         sortKeyEl.value = settings.sortKey;
@@ -610,6 +615,25 @@
             }
         }
 
+        async function loadSessions() {
+            try {
+                const res = await fetch('/api/sessions');
+                if (!res.ok) throw new Error('Failed to load');
+                const data = await res.json();
+                const list = data.sessions || [];
+
+                sessionsPanel.innerHTML = `
+                    <h3 style="margin-bottom:6px;">Sessions (read-only)</h3>
+                    <div class="muted mono" style="margin-bottom:8px;">count: ${list.length}</div>
+                    <ul class="mono">
+                        ${list.map(s => `<li>${escapeHtml(s.sessionKey || s.key || '-') } — ${escapeHtml(s.agentId || '-') } — ${escapeHtml(s.label || '-') }</li>`).join('') || '<li>-</li>'}
+                    </ul>
+                `;
+            } catch (e) {
+                sessionsPanel.innerHTML = '<div class="muted">Failed to load sessions.</div>';
+            }
+        }
+
         function connectSSE() {
             const es = new EventSource('/api/events');
 
@@ -650,6 +674,7 @@
         renderColumnPanel();
         renderTable();
         loadOpenclawSummary();
+        loadSessions();
         connectSSE();
     </script>
 </body>
