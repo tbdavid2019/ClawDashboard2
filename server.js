@@ -515,8 +515,8 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // 5. File Content API
-    if (pathname === '/api/file') {
+    // 5. File Content API (read)
+    if (pathname === '/api/file' && req.method === 'GET') {
         const { id, file } = parsedUrl.query;
         if (!id || !file) {
             res.writeHead(400);
@@ -554,6 +554,45 @@ const server = http.createServer(async (req, res) => {
                 res.end('Error reading file');
             }
         }
+        return;
+    }
+
+    // 5b. File Content API (write)
+    if (pathname === '/api/file' && req.method === 'POST') {
+        const { id, file } = parsedUrl.query;
+        if (!id || !file) {
+            res.writeHead(400);
+            res.end('Missing id or file params');
+            return;
+        }
+
+        if (!agents.has(id)) {
+            res.writeHead(403);
+            res.end('Access denied: Unknown agent');
+            return;
+        }
+
+        const targetPath = path.join(id, path.basename(file));
+        if (path.dirname(targetPath) !== id) {
+            res.writeHead(403);
+            res.end('Access denied: File must be in agent directory');
+            return;
+        }
+
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                await fs.writeFile(targetPath, body, 'utf8');
+                res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+                res.end('OK');
+                // trigger update
+                scheduleUpdate(targetPath);
+            } catch (e) {
+                res.writeHead(500);
+                res.end('Error writing file');
+            }
+        });
         return;
     }
 

@@ -439,6 +439,16 @@
             }
         }
 
+        async function saveDoc(agentId, filename, content) {
+            const res = await fetch(`/api/file?id=${encodeURIComponent(agentId)}&file=${encodeURIComponent(filename)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+                body: content
+            });
+            if (!res.ok) throw new Error(await res.text());
+            return true;
+        }
+
         function renderDetail() {
             const agent = agents.get(selectedAgentId);
             if (!agent) {
@@ -474,6 +484,12 @@
                         <span class="status-badge">${statusIcon} ${escapeHtml(statusText)}</span>
                     </h2>
                     <div class="muted mono">ID: ${escapeHtml(agent.id)}</div>
+                    <div style="margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <label class="muted">Agent Name</label>
+                        <input id="agent-name-input" value="${escapeHtml(agent.name || '')}" style="background:#0b1220;border:1px solid var(--border-color);color:#fff;border-radius:6px;padding:4px 8px;" />
+                        <button onclick="saveAgentName('${agent.id}')">Save</button>
+                        <span class="muted" style="font-size:0.8em;">(writes to IDENTITY.md)</span>
+                    </div>
                 </div>
                 <div>
                     <strong>Tasks</strong>
@@ -507,11 +523,37 @@
             const viewer = document.getElementById('doc-viewer');
             if (viewer) {
                 viewer.innerHTML = `
-                    <div class="muted" style="margin-bottom:6px;">${filename}</div>
-                    <pre>${escapeHtml(content)}</pre>
+                    <div class="muted" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                        <span>${filename}</span>
+                        <button onclick="saveDocContent('${agentId}', '${filename}')">Save</button>
+                    </div>
+                    <textarea id="doc-editor" style="width:100%; min-height:260px; background:#0b1220; color:#e5e7eb; border:1px solid var(--border-color); border-radius:6px; padding:8px; font-family:var(--mono);">${escapeHtml(content)}</textarea>
                 `;
             }
-            renderDetail();
+        };
+
+        window.saveDocContent = async function(agentId, filename) {
+            const editor = document.getElementById('doc-editor');
+            if (!editor) return;
+            try {
+                await saveDoc(agentId, filename, editor.value);
+                alert('Saved');
+            } catch (e) {
+                alert('Save failed: ' + e.message);
+            }
+        };
+
+        window.saveAgentName = async function(agentId) {
+            const input = document.getElementById('agent-name-input');
+            if (!input) return;
+            const name = input.value.trim();
+            const identity = `# Identity\n\n- **Name**: ${name}\n`;
+            try {
+                await saveDoc(agentId, 'IDENTITY.md', identity);
+                alert('Saved');
+            } catch (e) {
+                alert('Save failed: ' + e.message);
+            }
         };
 
         function connectSSE() {
