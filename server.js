@@ -16,7 +16,6 @@ const IGNORED_PATHS = [
     /(^|[\/\\])\../,       // dotfiles
     /node_modules/,        // node_modules
     /\.git/,               // git
-    /ClawDashboard2/,      // self
     /dist/,                // build artifacts
     /coverage/,            // test coverage
 ];

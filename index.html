@@ -695,7 +695,9 @@
                 case 'name': return (agent.name || '').toLowerCase();
                 case 'todayLogCount': return agent.todayLogCount || 0;
                 case 'lastUpdated': return agent.lastUpdated || 0;
-                case 'defaultModel': return (agent.defaultModel || '').toLowerCase();
+                case 'defaultModel': 
+                    const dmVal = (typeof agent.defaultModel === 'object') ? (agent.defaultModel.primary || JSON.stringify(agent.defaultModel)) : agent.defaultModel;
+                    return (dmVal || '').toLowerCase();
                 case 'taskOpen': return open;
                 default: return 0;
             }
@@ -735,7 +737,7 @@
                     <td data-label="State"><span class="status-badge ${sClass}">${sRaw} ${escapeHtml(sTextRaw)}</span></td>
                     <td data-label="Ops/Day" class="mono-val">${agent.todayLogCount ?? 0}</td>
                     <td data-label="Last Signal" class="mono-val">${formatTime(agent.lastUpdated)}</td>
-                    <td data-label="Model Core">${escapeHtml(agent.defaultModel || '-')}</td>
+                    <td data-label="Model Core">${escapeHtml((typeof agent.defaultModel === 'object') ? agent.defaultModel.primary : agent.defaultModel) || '-'}</td>
                     <td data-label="Tasks" class="mono-val">${total} / ${open}</td>
                 </tr>`;
             }).join('');
