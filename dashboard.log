@@ -1,0 +1,30 @@
+Loaded custom ignores: [ 'skills_archive', 'assets', 'templates' ]
+Starting ClawDashboard2...
+Watching workspace: /home/david/project
+Performing initial scan...
+Dashboard running at http://localhost:3002
+Updating agent: /home/david/project/clawd
+Updating agent: /home/david/project/clawd-code
+Updating agent: /home/david/project/clawd-devops
+Updating agent: /home/david/project/clawd-family1
+Updating agent: /home/david/project/clawd-family2
+Updating agent: /home/david/project/clawd-invest
+Updating agent: /home/david/project/clawd-qa
+Updating agent: /home/david/project/clawd-voice
+Updating agent: /home/david/project/clawd
+Updating agent: /home/david/project/clawd-code
+Updating agent: /home/david/project/clawd-devops
+Updating agent: /home/david/project/clawd-family1
+Updating agent: /home/david/project/clawd-family2
+Updating agent: /home/david/project/clawd-invest
+Updating agent: /home/david/project/clawd-qa
+Updating agent: /home/david/project/clawd-voice
+Updating agent: /home/david/project/clawd-devops
+Updating agent: /home/david/project/clawd
+Updating agent: /home/david/project/clawd-code
+Updating agent: /home/david/project/clawd-devops
+Updating agent: /home/david/project/clawd-family1
+Updating agent: /home/david/project/clawd-family2
+Updating agent: /home/david/project/clawd-invest
+Updating agent: /home/david/project/clawd-qa
+Updating agent: /home/david/project/clawd-voice
