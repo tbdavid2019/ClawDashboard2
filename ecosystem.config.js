@@ -10,7 +10,8 @@ module.exports = {
         time: true,
         env: {
             NODE_ENV: "production",
-            PORT: 3002
+            PORT: 3002,
+            HOST: "0.0.0.0"
         }
     }]
 };

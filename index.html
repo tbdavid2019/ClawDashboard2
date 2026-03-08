@@ -676,6 +676,13 @@
             { key: 'tasks', label: 'Tasks (Tot/Open)' },
         ];
 
+        function getModelLabel(agent) {
+            const model = agent?.defaultModel;
+            if (!model) return '-';
+            if (typeof model === 'object') return model.primary || JSON.stringify(model);
+            return String(model);
+        }
+
         function getStatusProps(r) {
             if (r === '🔴') return { class: 'status-error', text: 'OFFLINE' };
             if (r === '🟠') return { class: 'status-alert', text: 'BUSY' };
@@ -695,9 +702,8 @@
                 case 'name': return (agent.name || '').toLowerCase();
                 case 'todayLogCount': return agent.todayLogCount || 0;
                 case 'lastUpdated': return agent.lastUpdated || 0;
-                case 'defaultModel': 
-                    const dmVal = (typeof agent.defaultModel === 'object') ? (agent.defaultModel.primary || JSON.stringify(agent.defaultModel)) : agent.defaultModel;
-                    return (dmVal || '').toLowerCase();
+                case 'defaultModel':
+                    return getModelLabel(agent).toLowerCase();
                 case 'taskOpen': return open;
                 default: return 0;
             }
@@ -733,11 +739,11 @@
                 const sClass = settings.colorMode === 'on' ? sProps.class : 'status-idle';
 
                 return `<tr onclick="selectAgent('${agent.id}')">
-                    <td data-label="Entity ID" style="font-weight:600; color:var(--c-text-main)">${escapeHtml(agent.name || '-')}</td>
+                    <td data-label="Entity ID" style="font-weight:600; color:var(--c-text-main)">${escapeHtml(agent.agentId || agent.name || '-')}</td>
                     <td data-label="State"><span class="status-badge ${sClass}">${sRaw} ${escapeHtml(sTextRaw)}</span></td>
                     <td data-label="Ops/Day" class="mono-val">${agent.todayLogCount ?? 0}</td>
                     <td data-label="Last Signal" class="mono-val">${formatTime(agent.lastUpdated)}</td>
-                    <td data-label="Model Core">${escapeHtml((typeof agent.defaultModel === 'object') ? agent.defaultModel.primary : agent.defaultModel) || '-'}</td>
+                    <td data-label="Model Core">${escapeHtml(getModelLabel(agent))}</td>
                     <td data-label="Tasks" class="mono-val">${total} / ${open}</td>
                 </tr>`;
             }).join('');
@@ -799,7 +805,8 @@
                 <div class="panel-header">ENTITY: ${escapeHtml(agent.name).toUpperCase()}</div>
                 <div class="detail-grid">
                     <div class="detail-sidebar">
-                        <div class="tag">ID: ${escapeHtml(agent.id).split('/').pop()}</div>
+                        <div class="tag">ID: ${escapeHtml(agent.agentId || agent.id)}</div>
+                        <div class="tag">Workspace: ${escapeHtml(agent.id).split('/').pop()}</div>
                         <div class="tag">Runtime: ${escapeHtml(runtimeStatus)}</div>
                         <div class="tag">Declared: ${escapeHtml(declaredStatus)}</div>
                         <div class="tag">Signal File: ${escapeHtml(latestFile)}</div>
@@ -943,6 +950,20 @@
             }
         };
 
+        async function loadAgentsSnapshot() {
+            try {
+                const res = await fetch('/api/agents');
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                const list = await res.json();
+                agents.clear();
+                list.forEach(a => agents.set(a.id, a));
+                renderTable();
+                if (selectedAgentId) renderDetail();
+            } catch (e) {
+                console.error('Agent snapshot load failed:', e);
+            }
+        }
+
         // --- SSE ---
         const es = new EventSource('/api/events');
         es.onopen = () => {
@@ -959,9 +980,12 @@
         };
         es.addEventListener('init', e => {
             const list = JSON.parse(e.data);
-            agents.clear();
-            list.forEach(a => agents.set(a.id, a));
-            renderTable();
+            if (Array.isArray(list) && (list.length > 0 || agents.size === 0)) {
+                agents.clear();
+                list.forEach(a => agents.set(a.id, a));
+                renderTable();
+                if (selectedAgentId) renderDetail();
+            }
         });
         es.addEventListener('update', e => {
             const a = JSON.parse(e.data);
@@ -976,6 +1000,8 @@
             renderTable();
         });
 
+        loadAgentsSnapshot();
+        setInterval(loadAgentsSnapshot, 10000);
         loadSysInfo();
         loadConfigRaw();
     </script>

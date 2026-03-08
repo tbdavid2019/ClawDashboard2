@@ -14,7 +14,6 @@ const RESCAN_INTERVAL_MS = Number(process.env.RESCAN_INTERVAL_MS) || 5 * 60 * 10
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS) || 60 * 1000; // 1 min
 const AGENT_ACTIVE_WINDOW_MS = Number(process.env.AGENT_ACTIVE_WINDOW_MS) || 15 * 60 * 1000; // 15 min
 const AGENT_RECENT_WINDOW_MS = Number(process.env.AGENT_RECENT_WINDOW_MS) || 60 * 60 * 1000; // 1 hour
-const OPENCLAW_CONFIG_PATH = process.env.OPENCLAW_CONFIG_PATH || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const IGNORED_PATHS = [
     /(^|[\/\\])\../,       // dotfiles
     /node_modules/,        // node_modules
@@ -82,15 +81,81 @@ const AGENT_MARKER_FILES = new Set([
     'IDENTITY.md',
     'HEARTBEAT.md'
 ]);
+let openclawConfigMeta = {
+    path: null,
+    checkedPaths: [],
+    source: 'unresolved',
+    error: null
+};
+let configuredAgents = new Map();
 
 // ---- 1. Markdown Parser (Async) ----
-async function loadOpenclawConfig() {
+function parseJson5Like(raw) {
     try {
-        if (fsSync.existsSync(OPENCLAW_CONFIG_PATH)) {
-            const raw = await fs.readFile(OPENCLAW_CONFIG_PATH, 'utf8');
-            return JSON.parse(raw);
+        return JSON.parse(raw);
+    } catch (_) {
+        // OpenClaw commonly uses JSON5-ish config; accept comments, trailing commas, and unquoted keys.
+    }
+
+    const evaluated = new Function(`"use strict"; return (${raw});`);
+    return evaluated();
+}
+
+function getOpenclawCandidatePaths() {
+    const home = os.homedir();
+    const envCandidates = [
+        process.env.OPENCLAW_CONFIG_PATH,
+        process.env.OPENCLAW_HOME && path.join(process.env.OPENCLAW_HOME, 'openclaw.json'),
+        process.env.OPENCLAW_HOME && path.join(process.env.OPENCLAW_HOME, 'config', 'openclaw.json'),
+        process.env.OPENCLAW_STATE_DIR && path.join(process.env.OPENCLAW_STATE_DIR, 'openclaw.json'),
+        process.env.OPENCLAW_STATE_DIR && path.join(process.env.OPENCLAW_STATE_DIR, 'config', 'openclaw.json')
+    ].filter(Boolean);
+
+    const commonCandidates = [
+        path.join(home, '.openclaw', 'openclaw.json'),
+        path.join(home, '.config', 'openclaw', 'openclaw.json'),
+        path.join(WORKSPACE, 'clawd', 'config', 'openclaw_backup.json'),
+        path.join(WORKSPACE, 'clawd-devops', 'openclaw_backup.json')
+    ];
+
+    return Array.from(new Set([...envCandidates, ...commonCandidates])).map(p => path.resolve(p));
+}
+
+function resolveOpenclawConfigPath() {
+    const checkedPaths = getOpenclawCandidatePaths();
+    for (const candidate of checkedPaths) {
+        if (fsSync.existsSync(candidate)) {
+            openclawConfigMeta = {
+                path: candidate,
+                checkedPaths,
+                source: candidate === process.env.OPENCLAW_CONFIG_PATH ? 'env' : 'filesystem',
+                error: null
+            };
+            return candidate;
+        }
+    }
+
+    openclawConfigMeta = {
+        path: null,
+        checkedPaths,
+        source: 'unresolved',
+        error: null
+    };
+    return null;
+}
+
+async function loadOpenclawConfig() {
+    const resolvedPath = resolveOpenclawConfigPath();
+    try {
+        if (resolvedPath) {
+            const raw = await fs.readFile(resolvedPath, 'utf8');
+            return parseJson5Like(raw);
         }
     } catch (e) {
+        openclawConfigMeta = {
+            ...openclawConfigMeta,
+            error: e.message
+        };
         console.warn('Failed to read openclaw.json:', e.message);
     }
     return null;
@@ -161,13 +226,54 @@ function summarizeOpenclawConfig(config) {
         : [];
 
     return {
-        path: OPENCLAW_CONFIG_PATH,
+        path: openclawConfigMeta.path,
+        checkedPaths: openclawConfigMeta.checkedPaths,
+        configSource: openclawConfigMeta.source,
+        configError: openclawConfigMeta.error,
         meta: config.meta || null,
         defaults,
         agents: agentsList,
         bindings,
         channels
     };
+}
+
+function buildConfiguredAgentMap(config) {
+    const map = new Map();
+    const defaultsWorkspace = config?.agents?.defaults?.workspace
+        ? path.resolve(config.agents.defaults.workspace)
+        : null;
+    const list = Array.isArray(config?.agents?.list) ? config.agents.list : [];
+
+    for (const entry of list) {
+        const workspace = entry.workspace || (entry.default ? defaultsWorkspace : null);
+        if (!workspace) continue;
+        map.set(path.resolve(workspace), {
+            agentId: entry.id || path.basename(workspace),
+            name: entry.name || entry.id || path.basename(workspace),
+            workspace: path.resolve(workspace),
+            model: entry.model || null,
+            isDefault: !!entry.default
+        });
+    }
+
+    if (defaultsWorkspace && !map.has(defaultsWorkspace)) {
+        map.set(defaultsWorkspace, {
+            agentId: 'main',
+            name: 'main',
+            workspace: defaultsWorkspace,
+            model: config?.agents?.defaults?.model || config?.model || null,
+            isDefault: true
+        });
+    }
+
+    return map;
+}
+
+async function refreshConfiguredAgents() {
+    const config = await loadOpenclawConfig();
+    configuredAgents = buildConfiguredAgentMap(config);
+    return { config, configuredAgents };
 }
 
 function extractDefaultModelFromConfig(config, agentDir) {
@@ -234,6 +340,9 @@ async function findAgentRoot(startPath) {
     current = path.resolve(current);
 
     while (current.startsWith(workspaceRoot)) {
+        if (configuredAgents.size > 0 && configuredAgents.has(current)) {
+            return current;
+        }
         if (await hasAgentMarkers(current)) {
             return current;
         }
@@ -330,7 +439,7 @@ function deriveStatus(declaredStatus, tasks, activity) {
     return { r: '🟢', text: `idle • last signal ${ageText} ago` };
 }
 
-async function parseAgentDirectory(directory) {
+async function parseAgentDirectory(directory, agentMeta = null) {
     try {
         const projectPath = path.join(directory, 'PROJECT.md');
         let content = '';
@@ -396,7 +505,7 @@ async function parseAgentDirectory(directory) {
         // 3. PROJECT.md (# Title)
         // 4. Directory Name
 
-        let name = null;
+        let name = agentMeta?.name || agentMeta?.agentId || null;
 
         const extractName = (text) => {
             if (!text) return null;
@@ -453,6 +562,7 @@ async function parseAgentDirectory(directory) {
 
         return {
             id: directory, // Use directory path as unique ID
+            agentId: agentMeta?.agentId || path.basename(directory),
             name,
             status: deriveStatus(declaredStatus, tasks, activity),
             declaredStatus,
@@ -460,7 +570,7 @@ async function parseAgentDirectory(directory) {
             tasks,
             log: parseLog(sections['log']),
             todayLogCount: Math.max(countTodayLogs(sections['log']), activity.touchedToday || 0),
-            defaultModel,
+            defaultModel: agentMeta?.model || defaultModel,
             todayTokens,
             todayCalls,
             memory,
@@ -647,7 +757,10 @@ function handleRemove(filePath) {
 }
 
 async function upsertAgent(agentDir) {
-    const agent = await parseAgentDirectory(agentDir);
+    if (configuredAgents.size > 0 && !configuredAgents.has(path.resolve(agentDir))) {
+        return;
+    }
+    const agent = await parseAgentDirectory(agentDir, configuredAgents.get(path.resolve(agentDir)) || null);
     if (agent) {
         agents.set(agent.id, agent);
         broadcast('update', agent);
@@ -706,6 +819,13 @@ function isIgnored(filePath) {
 }
 
 async function scanWorkspace(dir) {
+    if (configuredAgents.size > 0) {
+        for (const agentDir of configuredAgents.keys()) {
+            scheduleUpdate(agentDir);
+        }
+        return;
+    }
+
     try {
         const entries = await fs.readdir(dir, { withFileTypes: true });
         const names = new Set(entries.map(entry => entry.name));
@@ -732,7 +852,10 @@ async function scanWorkspace(dir) {
 }
 
 // Trigger initial scan
-scanWorkspace(WORKSPACE);
+(async () => {
+    await refreshConfiguredAgents();
+    await scanWorkspace(WORKSPACE);
+})();
 
 // Periodic refresh (fallback in case watcher misses events)
 let refreshInProgress = false;
@@ -740,9 +863,12 @@ async function refreshAllAgents() {
     if (refreshInProgress) return;
     refreshInProgress = true;
     try {
-        for (const id of agents.keys()) {
+        await refreshConfiguredAgents();
+        const targets = configuredAgents.size > 0 ? Array.from(configuredAgents.keys()) : Array.from(agents.keys());
+
+        for (const id of targets) {
             try {
-                if (await hasAgentMarkers(id)) {
+                if (configuredAgents.size > 0 || await hasAgentMarkers(id)) {
                     await upsertAgent(id);
                 } else {
                     agents.delete(id);
@@ -762,6 +888,7 @@ async function rescanWorkspace() {
     if (rescanInProgress) return;
     rescanInProgress = true;
     try {
+        await refreshConfiguredAgents();
         await scanWorkspace(WORKSPACE);
     } finally {
         rescanInProgress = false;
@@ -895,14 +1022,16 @@ const server = http.createServer(async (req, res) => {
 
     // 6. OpenClaw Config (raw)
     if (pathname === '/api/openclaw/raw') {
-        try {
-            const raw = await fs.readFile(OPENCLAW_CONFIG_PATH, 'utf8');
-            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-            res.end(raw);
-        } catch (e) {
-            res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-            res.end('openclaw.json not found');
-        }
+        const config = await loadOpenclawConfig();
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+            found: !!openclawConfigMeta.path,
+            path: openclawConfigMeta.path,
+            checkedPaths: openclawConfigMeta.checkedPaths,
+            source: openclawConfigMeta.source,
+            error: openclawConfigMeta.error,
+            raw: config || {}
+        }));
         return;
     }
 
