@@ -57,7 +57,7 @@
             background-color: var(--c-void);
             color: var(--c-text-main);
             font-family: var(--f-mono);
-            font-size: 16px;
+            font-size: 15px;
             overflow-x: hidden;
             background-image: 
                 linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
@@ -121,22 +121,22 @@
         .brand-title {
             font-family: var(--f-head);
             font-weight: 700;
-            font-size: 24px;
+            font-size: 22px;
             line-height: 1;
-            letter-spacing: 1px;
+            letter-spacing: 0.6px;
             text-transform: uppercase;
         }
 
         .brand-sub {
-            font-size: 10px;
+            font-size: 11px;
             color: var(--c-text-dim);
-            letter-spacing: 2px;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
         }
 
         .status-indicator {
             font-family: var(--f-mono);
-            font-size: 11px;
+            font-size: 12px;
             text-transform: uppercase;
             padding: 4px 12px;
             border: 1px solid var(--c-border);
@@ -152,7 +152,7 @@
             border: 1px solid var(--c-border);
             padding: 6px 10px;
             border-radius: 6px;
-            font-size: 11px;
+            font-size: 12px;
             cursor: pointer;
             text-transform: uppercase;
         }
@@ -206,10 +206,10 @@
         .panel-header {
             font-family: var(--f-head);
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             color: var(--c-text-dim);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.8px;
             margin-bottom: 15px;
             display: flex;
             justify-content: space-between;
@@ -232,10 +232,10 @@
         }
 
         label {
-            font-size: 10px;
+            font-size: 11px;
             color: var(--c-text-dim);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.8px;
         }
 
         select, button, input {
@@ -243,7 +243,7 @@
             border: 1px solid var(--c-border);
             color: var(--c-text-main);
             font-family: var(--f-mono);
-            font-size: 12px;
+            font-size: 13px;
             padding: 8px 12px;
             cursor: pointer;
             text-transform: uppercase;
@@ -275,7 +275,7 @@
             border-bottom: 1px solid var(--c-border);
             text-transform: uppercase;
             letter-spacing: 1px;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .data-table td {
@@ -314,7 +314,7 @@
             align-items: center;
             gap: 8px;
             padding: 2px 8px;
-            font-size: 11px;
+            font-size: 12px;
             background: rgba(255,255,255,0.05);
             border: 1px solid transparent;
         }
@@ -330,10 +330,17 @@
         }
 
         /* DETAILS PANEL */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: minmax(340px, 0.95fr) minmax(520px, 1.25fr);
+            gap: 20px;
+            align-items: start;
+        }
+
         .detail-grid {
             display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 20px;
+            grid-template-columns: 220px minmax(0, 1fr);
+            gap: 18px;
         }
 
         .detail-sidebar {
@@ -343,19 +350,26 @@
 
         .detail-content h2 {
             font-family: var(--f-head);
-            font-size: 24px;
-            margin: 0 0 10px 0;
+            font-size: 18px;
+            margin: 0 0 12px 0;
             color: var(--c-accent);
             text-transform: uppercase;
+            letter-spacing: 0.6px;
         }
 
         .tag {
-            font-size: 10px;
+            font-size: 11px;
             border: 1px solid var(--c-border);
-            padding: 2px 6px;
+            padding: 4px 8px;
             color: var(--c-text-dim);
-            margin-bottom: 10px;
+            margin: 0 8px 8px 0;
             display: inline-block;
+        }
+
+        .tag-group {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
         }
 
         .task-list {
@@ -366,8 +380,9 @@
         .task-item {
             display: flex;
             gap: 10px;
-            padding: 8px 0;
+            padding: 10px 0;
             border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 13px;
         }
 
         .task-icon { width: 16px; text-align: center; font-weight: bold; }
@@ -382,8 +397,8 @@
             color: var(--c-text-main);
             overflow-x: auto;
             font-size: 13px;
-            line-height: 1.5;
-            max-height: 400px;
+            line-height: 1.65;
+            max-height: 360px;
         }
         
         textarea.editor {
@@ -393,7 +408,9 @@
             color: var(--c-text-main);
             font-family: var(--f-mono);
             padding: 15px;
-            min-height: 300px;
+            min-height: 520px;
+            font-size: 13px;
+            line-height: 1.65;
             resize: vertical;
         }
         
@@ -412,11 +429,44 @@
         .doc-chip {
             background: var(--c-surface-elev);
             border: 1px solid var(--c-border);
-            padding: 6px 10px;
-            font-size: 11px;
+            padding: 7px 11px;
+            font-size: 12px;
             color: var(--c-text-dim);
             cursor: pointer;
             transition: all 0.2s;
+        }
+
+        .doc-panel .panel-header {
+            margin-bottom: 12px;
+        }
+
+        .doc-empty {
+            min-height: 220px;
+            display: grid;
+            place-items: center;
+            border: 1px dashed var(--c-border);
+            color: var(--c-text-dim);
+            font-size: 13px;
+            letter-spacing: 0.4px;
+            text-transform: none;
+        }
+
+        .doc-toolbar {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            background: var(--c-surface-elev);
+            padding: 8px 12px;
+            border: 1px solid var(--c-border);
+        }
+
+        .doc-title {
+            font-size: 13px;
+            color: var(--c-accent);
+            font-family: var(--f-head);
+            letter-spacing: 0.5px;
         }
 
         .doc-chip:hover, .doc-chip.active {
@@ -477,6 +527,7 @@
             select, button, input { width: 100%; font-size: 11px; }
             .data-table th { font-size: 11px; padding: 8px 8px; }
             .data-table td { padding: 10px 8px; font-size: 12px; }
+            .workspace-grid { grid-template-columns: 1fr; }
             .detail-grid { grid-template-columns: 1fr; }
             .detail-sidebar { border-right: none; border-bottom: 1px solid var(--c-border); padding-bottom: 16px; }
         }
@@ -492,6 +543,7 @@
             .brand-title { font-size: 18px; }
             .brand-sub { font-size: 8px; letter-spacing: 1.2px; }
             .status-badge { font-size: 10px; }
+            textarea.editor { min-height: 360px; }
         }
 
         /* UTILS */
@@ -592,10 +644,18 @@
             </div>
         </div>
 
-        <!-- DETAIL VIEW -->
-        <div class="panel detail" id="detail-panel">
-            <div class="panel-header">Entity Inspection</div>
-            <div class="text-dim" style="padding: 20px; text-align: center;">SELECT TARGET FROM LIST</div>
+        <div class="workspace-grid">
+            <!-- DETAIL VIEW -->
+            <div class="panel detail" id="detail-panel">
+                <div class="panel-header">Entity Inspection</div>
+                <div class="text-dim" style="padding: 20px; text-align: center;">SELECT TARGET FROM LIST</div>
+            </div>
+
+            <!-- DOC WORKSPACE -->
+            <div class="panel doc-panel" id="doc-panel">
+                <div class="panel-header">Document Workspace</div>
+                <div id="doc-workspace" class="doc-empty">OPEN A DOCUMENT FROM THE SELECTED AGENT</div>
+            </div>
         </div>
     </main>
 
@@ -626,6 +686,7 @@
         let agents = new Map();
         let selectedAgentId = null;
         let selectedDoc = null;
+        let selectedDocContent = '';
 
         // Theme
         const themeKey = 'clawDashboardTheme';
@@ -653,6 +714,7 @@
         const tableHead = document.getElementById('table-head');
         const tableBody = document.getElementById('table-body');
         const detailPanel = document.getElementById('detail-panel');
+        const docWorkspace = document.getElementById('doc-workspace');
         const agentCountEl = document.getElementById('agent-count');
         const configRawEl = document.getElementById('config-raw');
         const configMetaEl = document.getElementById('config-meta');
@@ -752,7 +814,9 @@
         function selectAgent(id) {
             selectedAgentId = id;
             selectedDoc = null;
+            selectedDocContent = '';
             renderDetail();
+            renderDocWorkspace();
         }
 
         async function loadDoc(agentId, filename) {
@@ -805,11 +869,13 @@
                 <div class="panel-header">ENTITY: ${escapeHtml(agent.name).toUpperCase()}</div>
                 <div class="detail-grid">
                     <div class="detail-sidebar">
-                        <div class="tag">ID: ${escapeHtml(agent.agentId || agent.id)}</div>
-                        <div class="tag">Workspace: ${escapeHtml(agent.id).split('/').pop()}</div>
-                        <div class="tag">Runtime: ${escapeHtml(runtimeStatus)}</div>
-                        <div class="tag">Declared: ${escapeHtml(declaredStatus)}</div>
-                        <div class="tag">Signal File: ${escapeHtml(latestFile)}</div>
+                        <div class="tag-group">
+                            <div class="tag">ID: ${escapeHtml(agent.agentId || agent.id)}</div>
+                            <div class="tag">Workspace: ${escapeHtml(agent.id).split('/').pop()}</div>
+                            <div class="tag">Runtime: ${escapeHtml(runtimeStatus)}</div>
+                            <div class="tag">Declared: ${escapeHtml(declaredStatus)}</div>
+                            <div class="tag">Signal File: ${escapeHtml(latestFile)}</div>
+                        </div>
                         <div style="margin-bottom:20px">
                             <label>Designation Override</label>
                             <div style="display:flex; gap:5px; margin-top:5px;">
@@ -839,26 +905,42 @@
 
                         <h2 class="mt-4">Supplemental Data</h2>
                         <div class="docs-grid">${docsHtml}</div>
-                        <div id="doc-viewer"></div>
                     </div>
                 </div>
             `;
         }
 
-        window.viewDoc = async function(agentId, filename) {
-            selectedDoc = filename;
-            const content = await loadDoc(agentId, filename);
-            const viewer = document.getElementById('doc-viewer');
-            renderDetail(); // Refresh chips
-            
-            // Re-get viewer because renderDetail wiped it
-            document.getElementById('doc-viewer').innerHTML = `
-                <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; background:var(--c-surface-elev); padding:5px 10px; border:1px solid var(--c-border)">
-                    <span class="text-accent">${filename}</span>
-                    <button onclick="saveDocContent('${agentId}', '${filename}')">COMMIT CHANGE</button>
+        function captureOpenDocState() {
+            const editor = document.getElementById('doc-editor');
+            if (editor) {
+                selectedDocContent = editor.value;
+            }
+        }
+
+        function renderDocWorkspace() {
+            const agent = agents.get(selectedAgentId);
+            if (!agent || !selectedDoc) {
+                docWorkspace.className = 'doc-empty';
+                docWorkspace.innerHTML = 'OPEN A DOCUMENT FROM THE SELECTED AGENT';
+                return;
+            }
+
+            docWorkspace.className = '';
+            docWorkspace.innerHTML = `
+                <div class="doc-toolbar">
+                    <span class="doc-title">${escapeHtml(agent.agentId || agent.name || 'agent')} / ${escapeHtml(selectedDoc)}</span>
+                    <button onclick="saveDocContent('${agent.id}', '${selectedDoc}')">COMMIT CHANGE</button>
                 </div>
-                <textarea id="doc-editor" class="editor">${escapeHtml(content)}</textarea>
+                <textarea id="doc-editor" class="editor">${escapeHtml(selectedDocContent)}</textarea>
             `;
+        }
+
+        window.viewDoc = async function(agentId, filename) {
+            captureOpenDocState();
+            selectedDoc = filename;
+            selectedDocContent = await loadDoc(agentId, filename);
+            renderDetail();
+            renderDocWorkspace();
         };
 
         window.saveDocContent = async function(agentId, filename) {
@@ -866,6 +948,7 @@
             if (!editor) return;
             try {
                 await saveDoc(agentId, filename, editor.value);
+                selectedDocContent = editor.value;
                 alert('DATA COMMITTED');
             } catch (e) { alert('COMMIT FAILED: ' + e.message); }
         };
@@ -955,10 +1038,12 @@
                 const res = await fetch('/api/agents');
                 if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
                 const list = await res.json();
+                captureOpenDocState();
                 agents.clear();
                 list.forEach(a => agents.set(a.id, a));
                 renderTable();
                 if (selectedAgentId) renderDetail();
+                renderDocWorkspace();
             } catch (e) {
                 console.error('Agent snapshot load failed:', e);
             }
@@ -981,22 +1066,34 @@
         es.addEventListener('init', e => {
             const list = JSON.parse(e.data);
             if (Array.isArray(list) && (list.length > 0 || agents.size === 0)) {
+                captureOpenDocState();
                 agents.clear();
                 list.forEach(a => agents.set(a.id, a));
                 renderTable();
                 if (selectedAgentId) renderDetail();
+                renderDocWorkspace();
             }
         });
         es.addEventListener('update', e => {
             const a = JSON.parse(e.data);
+            captureOpenDocState();
             agents.set(a.id, a);
             renderTable();
-            if (selectedAgentId === a.id) renderDetail();
+            if (selectedAgentId === a.id) {
+                renderDetail();
+                renderDocWorkspace();
+            }
         });
         es.addEventListener('remove', e => {
             const {id} = JSON.parse(e.data);
             agents.delete(id);
-            if (selectedAgentId === id) { selectedAgentId = null; renderDetail(); }
+            if (selectedAgentId === id) {
+                selectedAgentId = null;
+                selectedDoc = null;
+                selectedDocContent = '';
+                renderDetail();
+                renderDocWorkspace();
+            }
             renderTable();
         });
 
