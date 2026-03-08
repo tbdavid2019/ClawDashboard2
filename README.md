@@ -12,6 +12,15 @@ ClawDashboard2 反過來：
 > **Dashboard 主動讀取 Agent 的 project `.md` 檔。**
 > Agent 只需按規範維護自己的 `.md`，不需要知道 Dashboard 的存在。
 
+目前狀態欄位採用「實際檔案活動優先」：
+- `PROJECT.md` 的 `Status` 保留為 declared status
+- Dashboard 會掃描 agent 目錄近況，依最近檔案更新推導 busy / recent / pending / idle
+- 這讓不同模型就算沒有嚴格維護 `PROJECT.md`，面板仍能判斷「最近有沒有在動」
+
+目前 agent discovery 採用 marker files：
+- 任一目錄只要存在 `PROJECT.md`、`MEMORY.md`、`IDENTITY.md`、`HEARTBEAT.md` 其中之一，就會被視為 agent
+- `PROJECT.md` 不再是 agent 出現與否的前提
+
 
 ![alt text](image.png)
 ## 架構對比

@@ -9,8 +9,11 @@ const url = require('url');
 // Configuration
 const WORKSPACE = process.env.WORKSPACE_ROOT || path.resolve(__dirname, '..');
 const PORT = process.env.PORT || 3002;
+const HOST = process.env.HOST || '127.0.0.1';
 const RESCAN_INTERVAL_MS = Number(process.env.RESCAN_INTERVAL_MS) || 5 * 60 * 1000; // 5 min
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS) || 60 * 1000; // 1 min
+const AGENT_ACTIVE_WINDOW_MS = Number(process.env.AGENT_ACTIVE_WINDOW_MS) || 15 * 60 * 1000; // 15 min
+const AGENT_RECENT_WINDOW_MS = Number(process.env.AGENT_RECENT_WINDOW_MS) || 60 * 60 * 1000; // 1 hour
 const OPENCLAW_CONFIG_PATH = process.env.OPENCLAW_CONFIG_PATH || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const IGNORED_PATHS = [
     /(^|[\/\\])\../,       // dotfiles
@@ -47,6 +50,38 @@ const agents = new Map();
 const clients = new Set();
 // Debounce map: agentId -> timeoutId
 const updateQueue = new Map();
+const ACTIVITY_IGNORED_DIRS = new Set([
+    '.git',
+    'node_modules',
+    'dist',
+    'coverage',
+    '__pycache__',
+    'archive',
+    'logs',
+    'tmp',
+    'venv',
+    '.venv'
+]);
+const ACTIVITY_ALLOWED_EXTENSIONS = new Set([
+    '.md',
+    '.json',
+    '.js',
+    '.cjs',
+    '.mjs',
+    '.ts',
+    '.tsx',
+    '.jsx',
+    '.py',
+    '.sh',
+    '.yaml',
+    '.yml'
+]);
+const AGENT_MARKER_FILES = new Set([
+    'PROJECT.md',
+    'MEMORY.md',
+    'IDENTITY.md',
+    'HEARTBEAT.md'
+]);
 
 // ---- 1. Markdown Parser (Async) ----
 async function loadOpenclawConfig() {
@@ -155,13 +190,158 @@ function extractDefaultModelFromConfig(config, agentDir) {
     );
 }
 
-async function parseProjectMd(filePath) {
+function formatAgeShort(ms) {
+    const totalMinutes = Math.max(1, Math.floor(ms / 60000));
+    if (totalMinutes < 60) return `${totalMinutes}m`;
+
+    const totalHours = Math.floor(totalMinutes / 60);
+    if (totalHours < 24) return `${totalHours}h`;
+
+    const totalDays = Math.floor(totalHours / 24);
+    return `${totalDays}d`;
+}
+
+async function listAgentMarkers(directory) {
+    const markers = [];
+    for (const file of AGENT_MARKER_FILES) {
+        try {
+            await fs.access(path.join(directory, file));
+            markers.push(file);
+        } catch (e) {
+            // Ignore missing marker files.
+        }
+    }
+    return markers;
+}
+
+async function hasAgentMarkers(directory) {
+    const markers = await listAgentMarkers(directory);
+    return markers.length > 0;
+}
+
+async function findAgentRoot(startPath) {
+    let current = startPath;
     try {
-        // Use async file reading to prevent blocking the event loop
-        const content = await fs.readFile(filePath, 'utf8');
-        const stat = await fs.stat(filePath);
-        const mtime = stat.mtime;
-        const directory = path.dirname(filePath);
+        const stat = await fs.stat(startPath);
+        if (!stat.isDirectory()) {
+            current = path.dirname(startPath);
+        }
+    } catch (e) {
+        current = path.dirname(startPath);
+    }
+
+    const workspaceRoot = path.resolve(WORKSPACE);
+    current = path.resolve(current);
+
+    while (current.startsWith(workspaceRoot)) {
+        if (await hasAgentMarkers(current)) {
+            return current;
+        }
+        if (current === workspaceRoot) {
+            break;
+        }
+        current = path.dirname(current);
+    }
+
+    return null;
+}
+
+async function getAgentActivity(directory, depth = 0) {
+    let latest = { ts: 0, file: null };
+    let touchedToday = 0;
+
+    let entries = [];
+    try {
+        entries = await fs.readdir(directory, { withFileTypes: true });
+    } catch (e) {
+        return { lastUpdated: 0, latestFile: null, touchedToday: 0 };
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    for (const entry of entries) {
+        const fullPath = path.join(directory, entry.name);
+
+        if (entry.isDirectory()) {
+            if (depth >= 2 || ACTIVITY_IGNORED_DIRS.has(entry.name) || isIgnored(fullPath)) {
+                continue;
+            }
+            const nested = await getAgentActivity(fullPath, depth + 1);
+            if (nested.lastUpdated > latest.ts) {
+                latest = { ts: nested.lastUpdated, file: nested.latestFile };
+            }
+            touchedToday += nested.touchedToday || 0;
+            continue;
+        }
+
+        const ext = path.extname(entry.name).toLowerCase();
+        if (!ACTIVITY_ALLOWED_EXTENSIONS.has(ext)) {
+            continue;
+        }
+
+        try {
+            const stat = await fs.stat(fullPath);
+            const mtime = stat.mtimeMs;
+            if (mtime > latest.ts) {
+                latest = { ts: mtime, file: path.relative(directory, fullPath) };
+            }
+            if (stat.mtime.toISOString().slice(0, 10) === today) {
+                touchedToday += 1;
+            }
+        } catch (e) {
+            // Ignore files deleted or changed mid-scan.
+        }
+    }
+
+    return {
+        lastUpdated: latest.ts,
+        latestFile: latest.file,
+        touchedToday
+    };
+}
+
+function deriveStatus(declaredStatus, tasks, activity) {
+    if (declaredStatus?.r === '❌' || declaredStatus?.r === '⏸️') {
+        return declaredStatus;
+    }
+
+    const openTasks = (tasks || []).filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
+    const lastUpdated = activity?.lastUpdated || 0;
+    if (!lastUpdated) {
+        return declaredStatus || { r: '🟢', text: 'idle' };
+    }
+
+    const ageMs = Math.max(0, Date.now() - lastUpdated);
+    const ageText = formatAgeShort(ageMs);
+    const suffix = activity?.latestFile ? ` • ${activity.latestFile}` : '';
+
+    if (ageMs <= AGENT_ACTIVE_WINDOW_MS) {
+        return { r: '🟠', text: `active ${ageText} ago${suffix}` };
+    }
+
+    if (ageMs <= AGENT_RECENT_WINDOW_MS) {
+        return { r: '🔵', text: `recent ${ageText} ago${suffix}` };
+    }
+
+    if (openTasks > 0) {
+        return { r: '🟡', text: `pending • ${openTasks} open task${openTasks > 1 ? 's' : ''}` };
+    }
+
+    return { r: '🟢', text: `idle • last signal ${ageText} ago` };
+}
+
+async function parseAgentDirectory(directory) {
+    try {
+        const projectPath = path.join(directory, 'PROJECT.md');
+        let content = '';
+        let mtime = new Date(0);
+        try {
+            content = await fs.readFile(projectPath, 'utf8');
+            const stat = await fs.stat(projectPath);
+            mtime = stat.mtime;
+        } catch (e) {
+            content = '';
+        }
 
         // Try to read MEMORY.md in the same directory
         let memory = '';
@@ -186,7 +366,7 @@ async function parseProjectMd(filePath) {
         try {
             const files = await fs.readdir(directory);
             for (const file of files) {
-                if (file.endsWith('.md') && file !== 'PROJECT.md' && file !== 'MEMORY.md' && file !== 'IDENTITY.md') {
+                if (file.endsWith('.md') && !AGENT_MARKER_FILES.has(file)) {
                     docs.push(file);
                 }
             }
@@ -257,6 +437,9 @@ async function parseProjectMd(filePath) {
 
         // Extract sections flexibly (support headings like # Status, ## Status, or inline "Status:" lines)
         const sections = extractSections(content);
+        const tasks = parseTasks(sections['tasks']);
+        const declaredStatus = parseStatus(sections['status'], content);
+        const activity = await getAgentActivity(directory);
 
         const openclawConfig = await loadOpenclawConfig();
         const defaultModel =
@@ -271,20 +454,23 @@ async function parseProjectMd(filePath) {
         return {
             id: directory, // Use directory path as unique ID
             name,
-            status: parseStatus(sections['status'], content),
-            tasks: parseTasks(sections['tasks']),
+            status: deriveStatus(declaredStatus, tasks, activity),
+            declaredStatus,
+            markers: await listAgentMarkers(directory),
+            tasks,
             log: parseLog(sections['log']),
-            todayLogCount: countTodayLogs(sections['log']),
+            todayLogCount: Math.max(countTodayLogs(sections['log']), activity.touchedToday || 0),
             defaultModel,
             todayTokens,
             todayCalls,
             memory,
             docs, // List of other markdown files
-            lastUpdated: mtime.getTime(),
+            lastUpdated: Math.max(mtime.getTime(), activity.lastUpdated || 0),
+            activity,
             directory
         };
     } catch (error) {
-        console.error(`Error parsing ${filePath}:`, error.message);
+        console.error(`Error parsing ${directory}:`, error.message);
         return null;
     }
 }
@@ -441,65 +627,61 @@ watcher
 
 // Handle removing agent
 function handleRemove(filePath) {
-    if (path.basename(filePath) === 'PROJECT.md') {
-        const directory = path.dirname(filePath);
-        console.log(`Agent removed: ${directory}`);
-        agents.delete(directory);
-        broadcast('remove', { id: directory });
+    const base = path.basename(filePath);
+    if (!AGENT_MARKER_FILES.has(base)) {
+        return;
+    }
+
+    const directory = path.dirname(filePath);
+    setTimeout(async () => {
+        if (await hasAgentMarkers(directory)) {
+            scheduleUpdate(directory);
+            return;
+        }
+        if (agents.has(directory)) {
+            console.log(`Agent removed: ${directory}`);
+            agents.delete(directory);
+            broadcast('remove', { id: directory });
+        }
+    }, 100);
+}
+
+async function upsertAgent(agentDir) {
+    const agent = await parseAgentDirectory(agentDir);
+    if (agent) {
+        agents.set(agent.id, agent);
+        broadcast('update', agent);
     }
 }
 
 // Debounced Update Logic
 function scheduleUpdate(filePath) {
-    const fileName = path.basename(filePath);
-    let agentDir = path.dirname(filePath);
+    const immediateDir = path.extname(filePath) ? path.dirname(filePath) : filePath;
+    const agentDirHint = agents.has(immediateDir) ? immediateDir : null;
 
-    // Determine target PROJECT.md path
-    let projectMdPath;
-
-    if (fileName === 'PROJECT.md') {
-        projectMdPath = filePath;
-    } else {
-        // If another file changed, check if PROJECT.md exists in same dir
-        projectMdPath = path.join(agentDir, 'PROJECT.md');
-        // We can't easily check exists asynchronously inside this sync handler without callback hell
-        // but fs.existsSync is fast enough for just a check, or we assume it exists if we are tracking this agent.
-        // Better: just schedule an update for this directory.
-    }
-
-    // Use agentDir as key for debouncing
-    if (updateQueue.has(agentDir)) {
-        clearTimeout(updateQueue.get(agentDir));
+    // Use immediateDir as key for debouncing resolution work
+    if (updateQueue.has(immediateDir)) {
+        clearTimeout(updateQueue.get(immediateDir));
     }
 
     // Set a new timeout (Debounce 500ms)
     const timeoutId = setTimeout(async () => {
-        updateQueue.delete(agentDir); // Remove from queue when executing
+        updateQueue.delete(immediateDir); // Remove from queue when executing
 
         try {
-            // Verify PROJECT.md exists before parsing
-            // We use the derived path
-            const targetProjectMd = path.join(agentDir, 'PROJECT.md');
-
-            try {
-                await fs.access(targetProjectMd); // Check existence async
-            } catch (e) {
-                // PROJECT.md doesn't exist, ignore this update (maybe it was deleted or just a loose md file)
+            const agentDir = agentDirHint || await findAgentRoot(filePath);
+            if (!agentDir) {
                 return;
             }
 
             console.log(`Updating agent: ${agentDir}`);
-            const agent = await parseProjectMd(targetProjectMd);
-            if (agent) {
-                agents.set(agent.id, agent);
-                broadcast('update', agent);
-            }
+            await upsertAgent(agentDir);
         } catch (err) {
-            console.error(`Update failed for ${agentDir}:`, err.message);
+            console.error(`Update failed for ${immediateDir}:`, err.message);
         }
     }, 500);
 
-    updateQueue.set(agentDir, timeoutId);
+    updateQueue.set(immediateDir, timeoutId);
 }
 
 // Perform initial population (Sync is fine for startup)
@@ -526,6 +708,12 @@ function isIgnored(filePath) {
 async function scanWorkspace(dir) {
     try {
         const entries = await fs.readdir(dir, { withFileTypes: true });
+        const names = new Set(entries.map(entry => entry.name));
+        const hasMarkers = Array.from(AGENT_MARKER_FILES).some(file => names.has(file));
+        if (hasMarkers) {
+            scheduleUpdate(dir);
+        }
+
         for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
 
@@ -536,9 +724,6 @@ async function scanWorkspace(dir) {
 
             if (entry.isDirectory()) {
                 await scanWorkspace(fullPath);
-            } else if (entry.name === 'PROJECT.md') {
-                // Found an agent!
-                scheduleUpdate(fullPath);
             }
         }
     } catch (e) {
@@ -556,13 +741,12 @@ async function refreshAllAgents() {
     refreshInProgress = true;
     try {
         for (const id of agents.keys()) {
-            const targetProjectMd = path.join(id, 'PROJECT.md');
             try {
-                await fs.access(targetProjectMd);
-                const agent = await parseProjectMd(targetProjectMd);
-                if (agent) {
-                    agents.set(agent.id, agent);
-                    broadcast('update', agent);
+                if (await hasAgentMarkers(id)) {
+                    await upsertAgent(id);
+                } else {
+                    agents.delete(id);
+                    broadcast('remove', { id });
                 }
             } catch (e) {
                 // ignore missing/permission issues
@@ -780,6 +964,6 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('UNHANDLED REJECTION:', reason);
 });
 
-server.listen(PORT, () => {
-    console.log(`Dashboard running at http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+    console.log(`Dashboard running at http://${HOST}:${PORT}`);
 });

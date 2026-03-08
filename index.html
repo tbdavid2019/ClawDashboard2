@@ -789,11 +789,20 @@
                 return `<button class="doc-chip ${act}" onclick="viewDoc('${agent.id}', '${doc}')">${doc}</button>`;
             }).join('');
 
+            const runtimeStatus = agent.status?.text || 'idle';
+            const declaredStatus = agent.declaredStatus
+                ? `${agent.declaredStatus.r || ''} ${agent.declaredStatus.text || ''}`.trim()
+                : 'N/A';
+            const latestFile = agent.activity?.latestFile || '-';
+
             detailPanel.innerHTML = `
                 <div class="panel-header">ENTITY: ${escapeHtml(agent.name).toUpperCase()}</div>
                 <div class="detail-grid">
                     <div class="detail-sidebar">
                         <div class="tag">ID: ${escapeHtml(agent.id).split('/').pop()}</div>
+                        <div class="tag">Runtime: ${escapeHtml(runtimeStatus)}</div>
+                        <div class="tag">Declared: ${escapeHtml(declaredStatus)}</div>
+                        <div class="tag">Signal File: ${escapeHtml(latestFile)}</div>
                         <div style="margin-bottom:20px">
                             <label>Designation Override</label>
                             <div style="display:flex; gap:5px; margin-top:5px;">
